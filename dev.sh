@@ -7,4 +7,4 @@ if [ ! -f .ssh_cmd ]; then
 fi
 SSH_CMD=$(cat .ssh_cmd)
 
-./list_files.sh | entr -crs "./sync.sh && $SSH_CMD -t '(pkill python; cd /workspace/ComfyUI; python main.py)'"
+./list_files.sh | entr -crs "./sync.sh && $SSH_CMD -t '(pkill python; cd /workspace/ComfyUI; python main.py --enable-cors-header http://localhost:3000)'"

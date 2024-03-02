@@ -16,7 +16,17 @@ Local:
 ```
 
 
-## reload comfy and sync on local changes
+
+## run comfy
+## option 1 -- run comfy directly
+remote:
+
+```
+(cd /workspace/ComfyUI; python main.py --enable-cors-header http://localhost:3000)
+```
+
+
+## option 2 -- reload comfy and sync on local changes
 
 prerequisites: 
 
@@ -27,6 +37,23 @@ local:
 
 ```
 ./dev.sh
+```
+
+
+## run local client
+
+prerequisites: [`bun`](https://bun.sh/docs/installation#installing)
+
+copy `frontend/.env.example` over to `frontend/.env` with the appropriate values.
+
+install node_modules
+```
+(cd frontend; bun install)
+```
+
+Develop
+```
+(cd frontend; bun dev)
 ```
 
 ---

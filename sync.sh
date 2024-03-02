@@ -25,5 +25,6 @@ rsync -avz \
       --include='**/' \
       --include-from=$tmp_file \
       --exclude='**/.*' \
+      --exclude='frontend/**' \
       -e "$SSH_CMD" \
       ./ ":/workspace/ComfyUI"

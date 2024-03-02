@@ -21,6 +21,7 @@
             jupyter
             entr
             graphviz
+            bun
           ];
         };
       }
