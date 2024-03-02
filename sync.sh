@@ -19,7 +19,8 @@ echo "**********************************"
 echo "Syncing files to remote workspace"
 echo "**********************************"
 
-rsync -rltgoDv \
+rsync -avz \
+      --no-o --no-g \
       --no-perms --omit-dir-times \
       --include-from=$tmp_file \
       -e "$SSH_CMD" \
