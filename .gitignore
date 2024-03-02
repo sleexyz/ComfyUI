@@ -20,3 +20,5 @@ venv/
 *.log
 .ssh_cmd
 .cloudflare_demo_key
+
+sample-demos/
