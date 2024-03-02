@@ -10,7 +10,7 @@ import os, glob
 
 # server_address = "representative-longest-miami-represents.trycloudflare.com"
 server_address = "127.0.0.1:8188"
-json_file_path = "./workflow_api/actual_best_api_preview.json"
+json_file_path = "workspace/ComfyUI/custom_workflows/actual_best/actual_best_api_preview.json"
 first_batch = False
 
 client_id = str(uuid.uuid4())
@@ -57,6 +57,8 @@ def get_images(ws, prompt):
             output_images[node_id] = images_output
 
     return output_images
+
+
 
 # json_text = """ """
 # prompt = json.loads(json_text)
