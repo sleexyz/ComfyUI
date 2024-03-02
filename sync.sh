@@ -20,6 +20,7 @@ echo "Syncing files to remote workspace"
 echo "**********************************"
 
 rsync -rltgoDv \
+      --no-perms --omit-dir-times \
       --include-from=$tmp_file \
       -e "$SSH_CMD" \
       ./ ":/workspace/ComfyUI"
