@@ -22,6 +22,8 @@ echo "**********************************"
 rsync -avz \
       --no-o --no-g \
       --no-perms --omit-dir-times \
+      --include='**/' \
       --include-from=$tmp_file \
+      --exclude='**/.*' \
       -e "$SSH_CMD" \
       ./ ":/workspace/ComfyUI"
