@@ -187,11 +187,25 @@ def load_extra_path_config(yaml_path):
 
 
 if __name__ == "__main__":
+    temp_dir = folder_paths.get_temp_directory()
     if args.temp_directory:
         temp_dir = os.path.join(os.path.abspath(args.temp_directory), "temp")
         print(f"Setting temp directory to: {temp_dir}")
         folder_paths.set_temp_directory(temp_dir)
     cleanup_temp()
+
+    # Run mkdir -p on the temp directory
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # copy files in temp_starting over to the new temp directory
+    temp_starting_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "temp_starting")
+    for item in os.listdir(temp_starting_dir):
+        s = os.path.join(temp_starting_dir, item)
+        d = os.path.join(temp_dir, item)
+        if os.path.isdir(s):
+            shutil.copytree(s, d, dirs_exist_ok=True)
+        else:
+            shutil.copy2(s, d)
 
     if args.windows_standalone_build:
         try:
