@@ -6,6 +6,7 @@ __pycache__/
 /models/
 /temp/
 /custom_nodes/
+!/custom_nodes/ComfyUI-AnimateDiff-Evolved
 !custom_nodes/example_node.py.example
 extra_model_paths.yaml
 /.vs
@@ -16,3 +17,4 @@ venv/
 !/web/extensions/core/
 /tests-ui/data/object_info.json
 /user/
+*.log
