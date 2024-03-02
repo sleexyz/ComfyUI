@@ -12,7 +12,7 @@ fi
 SSH_CMD=$(cat .ssh_cmd)
 
 tmp_file=$(mktemp)
-sed 's/^/+ /' <(./list_files.sh) > $tmp_file
+sed 's/^/+ /' <(./list_backend_files.sh) > $tmp_file
 echo "- *" >> $tmp_file
 
 echo "**********************************"
