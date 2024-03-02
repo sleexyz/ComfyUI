@@ -8,6 +8,7 @@ __pycache__/
 /custom_nodes/
 !/custom_nodes/ComfyUI-AnimateDiff-Evolved
 !custom_nodes/example_node.py.example
+!custom_nodes/output_websocket_image.py
 extra_model_paths.yaml
 /.vs
 .idea/
@@ -20,3 +21,4 @@ venv/
 *.log
 .ssh_cmd
 .cloudflare_demo_key
+
