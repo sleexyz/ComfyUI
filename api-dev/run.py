@@ -7,11 +7,13 @@ import json
 import urllib.request
 import urllib.parse
 import os, glob
+from PIL import Image
+import io
 
-# server_address = "representative-longest-miami-represents.trycloudflare.com"
+json_file_path = "/workspace/ComfyUI/custom_workflows/actual_best/actual_best_api_preview.json"
+first_batch = True
+
 server_address = "127.0.0.1:8188"
-json_file_path = "workspace/ComfyUI/custom_workflows/actual_best/actual_best_api_preview.json"
-first_batch = False
 
 client_id = str(uuid.uuid4())
 
@@ -59,61 +61,51 @@ def get_images(ws, prompt):
     return output_images
 
 
-
-# json_text = """ """
-# prompt = json.loads(json_text)
-try:
-    with open(json_file_path, 'r') as file:
-        prompt = json.load(file)
-except FileNotFoundError:
-    print(f"The file {json_file_path} was not found.")
-except json.JSONDecodeError:
-    print("An error occurred while decoding the JSON data.")
-        
-#set the text prompt for our positive CLIPTextEncode
-prompt["3"]["inputs"]["text"] = "running in a desert "
-
-
-if first_batch:
-    prompt["65"]["inputs"]["latent"] = "empty_latent_64.latent.png [temp]"
-else:
-    img_dir = max(glob.glob('/workspace/ComfyUI/temp/latents/LatentSender_*.latent.png'), key=lambda x: int(x.split('_')[1]))
-    # prompt["65"]["inputs"]["latent"] = "latents/LatentSender_00001_.latent.png [temp]"
-    prompt["65"]["inputs"]["latent"] = img_dir.replace("/workspace/ComfyUI/temp/","") + " [temp]"
+def update_prompt(prompt:dict, first_batch:bool, input_prompt):
+    #set the text prompt for our positive CLIPTextEncode
+    prompt["3"]["inputs"]["text"] = input_prompt
     
+    if first_batch:
+        prompt["65"]["inputs"]["latent"] = "latents/empty_latent_64.latent.png [temp]"
+    else:
+        img_dir = max(glob.glob('/workspace/ComfyUI/temp/latents/LatentSender_*.latent.png'), key=lambda x: int(x.split('_')[1]))
+        # prompt["65"]["inputs"]["latent"] = "latents/LatentSender_00001_.latent.png [temp]"
+        prompt["65"]["inputs"]["latent"] = img_dir.replace("/workspace/ComfyUI/temp/","") + " [temp]"
 
-#set the seed for our KSampler node
-# prompt["3"]["inputs"]["seed"] = 5
-
-
-
-ws = websocket.WebSocket()
-print("Finished setting up web socket")
-
-ws.connect("ws://{}/ws?clientId={}".format(server_address, client_id))
-images = get_images(ws, prompt)
-# print("Images", images)
-print("Images (dict) keys", images.keys())
-# images = images["55"] # save only gifs
+    return prompt
 
 
-#Commented out code to display the output images:
+def main(input_prompt="skiing on a snowy mountain"):
+    try:
+        with open(json_file_path, 'r') as file:
+            prompt = json.load(file)
+    except FileNotFoundError:
+        print(f"The file {json_file_path} was not found.")
+    except json.JSONDecodeError:
+        print("An error occurred while decoding the JSON data.")
+            
+    
+    ws = websocket.WebSocket()
+    print("Finished setting up web socket!!")
+    
+    ws.connect("ws://{}/ws?clientId={}".format(server_address, client_id))
 
-# for i, image_data in enumerate(images):
-#     from PIL import Image
-#     import io
-#     image = Image.open(io.BytesIO(image_data))
-#     # image.show()
-#     image.save(f"outputs/frame_{i}.jpeg")
-from PIL import Image
-import io
+    first_batch = True
+    while True:
+        print("Generating", first_batch, end="")
+        prompt = update_prompt(prompt, first_batch, input_prompt)
+        first_batch = False
+        images = get_images(ws, prompt)
+        print("Images (dict) keys", images.keys())
+        
+        # if not os.path.exists("outputs-imgs"):
+        #     os.makedirs("outputs-imgs")
+        
+        for node_id in images:
+            for i, image_data in enumerate(images[node_id]):
+                image = Image.open(io.BytesIO(image_data))
+                image.show()
+                # image.save(f"outputs-imgs/frame_{i}_{node_id}.jpeg")
 
-if not os.path.exists("outputs-imgs"):
-    os.makedirs("outputs-imgs")
-
-for node_id in images:
-    for i, image_data in enumerate(images[node_id]):
-        image = Image.open(io.BytesIO(image_data))
-        # image.show()
-        image.save(f"outputs-imgs/frame_{i}_{node_id}.jpeg")
-
+if __name__ == "__main__":
+    main()
