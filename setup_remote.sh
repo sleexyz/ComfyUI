@@ -19,4 +19,4 @@ CLOUDFLARE_DEMO_KEY=$(cat .cloudflare_demo_key)
 if [ "$1" != "--no_provision" ]; then
   $SSH_CMD -t 'bash -s' < provisioning/provision.sh 
 fi
-$SSH_CMD -t "nohup cloudflared tunnel run --url http://localhost:8188 --token $CLOUDFLARE_DEMO_KEY &"
+$SSH_CMD -t "cloudflared tunnel run --url http://localhost:8188 --token $CLOUDFLARE_DEMO_KEY"
