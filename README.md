@@ -1,3 +1,36 @@
+## set up runpod
+
+https://www.runpod.io/console/explore/runpod-torch-v220
+
+## track your runpod locally
+
+```
+> echo "ssh root@141.193.30.26 -p 43373 -i ~/.ssh/id_ed25519" > .ssh_cmd
+```
+
+## set up dependencies and run cloudflared
+
+Local:
+```
+./setup_remote.sh
+```
+
+
+## reload comfy and sync on local changes
+
+prerequisites: 
+
+- `brew install entr`
+
+
+local:
+
+```
+./dev.sh
+```
+
+---
+
 ComfyUI
 =======
 The most powerful and modular stable diffusion GUI and backend.

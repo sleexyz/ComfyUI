@@ -18,3 +18,5 @@ venv/
 /tests-ui/data/object_info.json
 /user/
 *.log
+.ssh_cmd
+.cloudflare_demo_key
