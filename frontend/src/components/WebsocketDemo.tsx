@@ -1,16 +1,16 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import useSWR from 'swr'
+import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { useDebounce } from "use-debounce";
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
-import { Skeleton } from './ui/skeleton';
-import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import actual_best_api_preview from "../../../custom_workflows/actual_best/actual_best_api_preview.json";
 import sixteen_frames_copy_last from "../../../custom_workflows/sixteen_frames_copy_last/sixteen_frames_copy_last_api.json";
 import OpenAI from "openai"; 
+import { useLocalStorageState, useRefState } from '@/lib/state';
+import dynamic from 'next/dynamic';
+import { useControls } from 'leva';
 
 // auto mode
 // text box to input prompt to beginning of prompt queue + fixed prompt traveling otherwise
@@ -48,23 +48,33 @@ async function generateTemporalPrompts(promptText: string): Promise<string[]> {
     }
 }
 
+// TODO: use ssr
+const Toggle = dynamic(() => import('./ui/toggle').then((mod) => mod.Toggle), { ssr: false });
+
 const CLIENT_ID = uuidv4();
 
 export function WebsocketDemo() {
+    const [infiniteLoop, setInfiniteLoop] = useLocalStorageState('infinite_loop', false);
+
     const [ws, setWs] = useState<WebSocket>()
     const [status, setStatus] = useState("not-connected")
     // log of the current status
     useEffect(() => {
         console.log("status", status)
     }, [status])
-    const [promptInput, setPromptInput] = useState('A person jetpacking through a futuristic city at night.');
-    // const [debouncedPrompt] = useDebounce(promptInput, 200);
+    const [promptInput, setPromptInput] = useLocalStorageState<string>("prompt_input", 'A anime cat');
+    // const [debouncedPrompt] = useDebounce(promptInput, 1000);
 
     const [currentLog, setCurrentLog] = useState<string>();
 
-    const [reconnectCounter, setReconnectCounter] = useState(0)
+    const [promptTrigger, setPromptTrigger] = useState({});
+    const prePromptTrigger = useRef(promptTrigger)
 
-    const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the canvas element
+
+    const [frames, setFrames, framesRef] = useRefState<ArrayBuffer[]>([]);
+
+
+    const [reconnectCounter, setReconnectCounter] = useState(0);
 
 
 
@@ -109,7 +119,7 @@ export function WebsocketDemo() {
               console.error("Error processing prompts:", error);
             }
           })();
-
+          
     }, [ws, status, promptInput])
 
     const preStatus = useRef(status)
@@ -118,7 +128,14 @@ export function WebsocketDemo() {
         if (preStatus.current != status && status == "ready")
             sendInput();
         preStatus.current = status
-    }, [status, sendInput])
+    }, [status, sendInput, infiniteLoop]);
+
+    useEffect(() => {
+        if (prePromptTrigger.current != promptTrigger) {
+            sendInput();
+        }
+        prePromptTrigger.current = promptTrigger;
+    }, [promptTrigger, sendInput])
 
     useEffect(() => {
         setStatus("connecting");
@@ -141,23 +158,29 @@ export function WebsocketDemo() {
                 if (message?.type == "progress") {
                     const numerator = message.data?.value || 0;
                     const denominator = message.data?.max || 1;
-                    setCurrentLog(`generating... ${(numerator/denominator * 100).toFixed(0)}%`)
+                    setCurrentLog(`generating... ${(numerator / denominator * 100).toFixed(0)}%`)
                 }
                 if (message?.type == "latent-send") {
                     lastLatent.current = message.data?.images[0].filename;
                     console.log("updated last latent", lastLatent.current)
                 }
 
-                if (message?.type == "executing" && message?.data?.node == null)
+                if (message?.type == "executing" && message?.data?.node == null) {
+                    // TODO: use ssr
                     setCurrentLog("done")
-                else if (message?.type == "live_status")
+                    if (infiniteLoop) {
+                        console.log("Looping, sending input again");
+                        setPromptTrigger({});
+                    }
+                } else if (message?.type == "live_status") {
                     setCurrentLog(`running - ${message.data?.current_node} ${(message.data.progress * 100).toFixed(2)}%`)
-                else if (message?.type == "elapsed_time")
+                } else if (message?.type == "elapsed_time") {
                     setCurrentLog(`elapsed time: ${Math.ceil(message.data?.elapsed_time * 100) / 100}s`)
+                }
             }
             if (event.data instanceof ArrayBuffer) {
-                console.log("Received binary message:");
-                drawImage(event.data);
+                // console.log("Received binary message:");
+                setFrames((frames) => [...frames, event.data]);
             }
         };
         websocket.onclose = () => setStatus("closed");
@@ -170,6 +193,51 @@ export function WebsocketDemo() {
         };
     }, []);
 
+    const pending = (status == "not-connected" || status == "connecting" || status == "reconnecting" || currentLog?.startsWith("running") || (!currentLog && status == "connected"))
+
+
+    return (
+        <div className='flex md:flex-col gap-2 px-2 flex-col-reverse'>
+            <div className="flex justify-between">
+                <div className='flex gap-2'>
+                    <Badge variant={'outline'} className='w-fit'>Status: {status}</Badge>
+                    {(currentLog || status == "connected" || status == "ready") && <Badge variant={'outline'} className='w-fit'>
+                        {currentLog}
+                        {status == "connected" && !currentLog && "stating comfy ui"}
+                        {status == "ready" && !currentLog && " running"}
+                    </Badge>}
+                </div>
+                <div>
+                    <Toggle
+                        pressed={infiniteLoop}
+                        aria-pressed={infiniteLoop}
+                        onPressedChange={(value) => setInfiniteLoop(value)}
+                    >
+                        <span>♾️</span>
+                    </Toggle>
+                </div>
+            </div>
+
+            <div className='relative w-full'>
+                <Player frames={frames} framesRef={framesRef} />
+            </div>
+
+
+            <Input
+                type="text"
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                        sendInput();
+                    }
+                }}
+            />
+        </div>
+    )
+}
+function Player(props: { frames: ArrayBuffer[], framesRef: MutableRefObject<ArrayBuffer[]> }) {
+    const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the canvas element
     const drawImage = useCallback((arrayBuffer: ArrayBuffer) => {
         const view = new DataView(arrayBuffer);
         const eventType = view.getUint32(0);
@@ -183,8 +251,6 @@ export function WebsocketDemo() {
                 let outputIdBytes = new Uint8Array(buffer, imageTypeSize, outputIdSize);
                 // Convert the bytes to an ASCII string
                 let outputId = new TextDecoder("ascii").decode(outputIdBytes);
-
-                console.log("Extracted output_id:", outputId);
 
                 const view2 = new DataView(arrayBuffer);
                 const imageType = view2.getUint32(0)
@@ -201,8 +267,8 @@ export function WebsocketDemo() {
                         imageMime = "image/webp"
                 }
                 const blob = new Blob([buffer.slice(4 + outputIdSize)], { type: imageMime });
-                const fileSize = blob.size;
-                console.log(`Received image size: ${(fileSize / 1024).toFixed(2)} KB`);
+                // const fileSize = blob.size;
+                // console.log(`Received image size: ${(fileSize / 1024).toFixed(2)} KB`);
 
                 // const blob = new Blob([arrayBuffer], { type: 'image/png' }); // Assuming the image is a JPEG
                 const url = URL.createObjectURL(blob);
@@ -211,8 +277,6 @@ export function WebsocketDemo() {
                 const ctx = canvas?.getContext('2d');
 
                 if (ctx) {
-                    console.log("drawing");
-
                     const img = new Image();
                     img.onload = () => {
                         if (canvas) {
@@ -229,41 +293,43 @@ export function WebsocketDemo() {
         }
     }, []);
 
-    const pending = (status == "not-connected" || status == "connecting" || status == "reconnecting" || currentLog?.startsWith("running") || (!currentLog && status == "connected"))
+    const [{ play, fps, frameIndex }, set] = useControls(() => ({
+        fps: window.localStorage.getItem("fps") || 8,
+        play: true,
+        frameIndex: { value: 0, min: 0, max: Math.max(props.frames.length - 1, 0), step: 1, label: "Frame" }
+    }), [props.frames.length]);
+    useEffect(() => {
+        window.localStorage.setItem("fps", fps.toString());
+    }, [fps]);
+
+
+    useEffect(() => {
+        if (play) {
+            const interval = setInterval(() => {
+                let nextFrameIndex = frameIndex;
+                if (props.framesRef.current.length === 0) {
+                    return
+                }
+
+                nextFrameIndex = (frameIndex + 1) % props.framesRef.current.length;
+                set({ frameIndex: nextFrameIndex });
+            }, 1000 / fps);
+            return () => clearInterval(interval);
+        }
+    }, [play, fps, frameIndex, props.framesRef, set]);
+
+    useEffect(() => {
+        if (props.frames.length > 0) {
+            const frame = props.frames[frameIndex];
+            if (frame) {
+                drawImage(frame);
+            }
+        }
+    }, [frameIndex, props.frames, drawImage]);
 
     return (
-        <div className='flex md:flex-col gap-2 px-2 flex-col-reverse'>
-            <div className='flex gap-2'>
-                <Badge variant={'outline'} className='w-fit'>Status: {status}</Badge>
-                {(currentLog || status == "connected" || status == "ready") && <Badge variant={'outline'} className='w-fit'>
-                    {currentLog}
-                    {status == "connected" && !currentLog && "stating comfy ui"}
-                    {status == "ready" && !currentLog && " running"}
-                </Badge>}
-            </div>
-
-            <div className='relative w-full'>
-                <canvas ref={canvasRef} className='rounded-lg ring-1 ring-black/10 w-full aspect-square' width={1024} height={1024}></canvas>
-                {/* {
-                    <><Skeleton className={
-                        cn("absolute top-0 left-0 w-full h-full aspect-square opacity-20 transition-opacity", pending ? "visible" : "invisible opacity-0")
-                    } /></>
-                } */}
-            </div>
-
-
-            <Input
-                type="text"
-                value={promptInput}
-                onChange={(e) => setPromptInput(e.target.value)}
-                onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                        sendInput();
-                    }
-                }}
-            />
-        </div>
-    )
+        <canvas ref={canvasRef} className='rounded-lg ring-1 ring-black/10 w-full aspect-square' width={1024} height={1024}></canvas>
+    );
 }
 
 async function queuePrompt(prompt: any): Promise<any> {
@@ -308,7 +374,7 @@ function getNodeWithTitle(prompt: Prompt, title: string): string {
 }
 
 // export async function updatePrompt(firstBatch: boolean, inputPrompt: string) {
-export function generatePrompt({ client_id, inputPrompt, lastLatent }: { client_id: string, inputPrompt: string, lastLatent: string}) {
+export function generatePrompt({ client_id, inputPrompt, lastLatent }: { client_id: string, inputPrompt: string, lastLatent: string }) {
     const prompt = clone(sixteen_frames_copy_last);
 
     // Set the text prompt for our positive CLIPTextEncode
