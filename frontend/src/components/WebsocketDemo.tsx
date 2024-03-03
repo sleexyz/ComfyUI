@@ -10,10 +10,16 @@ import { v4 as uuidv4 } from 'uuid';
 import actual_best_api_preview from "../../../custom_workflows/actual_best/actual_best_api_preview.json";
 import sixteen_frames_copy_last from "../../../custom_workflows/sixteen_frames_copy_last/sixteen_frames_copy_last_api.json";
 import { useLocalStorageState } from '@/lib/state';
+import dynamic from 'next/dynamic';
+
+// TODO: use ssr
+const Toggle = dynamic(() => import('./ui/toggle').then((mod) => mod.Toggle), { ssr: false });
 
 const CLIENT_ID = uuidv4();
 
 export function WebsocketDemo() {
+    const [infiniteLoop, setInfiniteLoop] = useLocalStorageState('infinite_loop', false);
+
     const [ws, setWs] = useState<WebSocket>()
     const [status, setStatus] = useState("not-connected")
     // log of the current status
@@ -21,11 +27,15 @@ export function WebsocketDemo() {
         console.log("status", status)
     }, [status])
     const [promptInput, setPromptInput] = useLocalStorageState<string>("prompt_input", 'A anime cat');
-    // const [debouncedPrompt] = useDebounce(promptInput, 200);
+    // const [debouncedPrompt] = useDebounce(promptInput, 1000);
 
     const [currentLog, setCurrentLog] = useState<string>();
 
-    const [reconnectCounter, setReconnectCounter] = useState(0)
+    const [promptTrigger,setPromptTrigger] = useState({});
+    const prePromptTrigger = useRef(promptTrigger)
+
+
+    const [reconnectCounter, setReconnectCounter] = useState(0);
 
     const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the canvas element
 
@@ -56,7 +66,14 @@ export function WebsocketDemo() {
         if (preStatus.current != status && status == "ready")
             sendInput();
         preStatus.current = status
-    }, [status, sendInput])
+    }, [status, sendInput,  infiniteLoop]);
+
+    useEffect(() => {
+        if (prePromptTrigger.current != promptTrigger) {
+            sendInput();
+        }
+        prePromptTrigger.current = promptTrigger;
+    }, [promptTrigger, sendInput])
 
     useEffect(() => {
         setStatus("connecting");
@@ -86,15 +103,20 @@ export function WebsocketDemo() {
                     console.log("updated last latent", lastLatent.current)
                 }
 
-                if (message?.type == "executing" && message?.data?.node == null)
+                if (message?.type == "executing" && message?.data?.node == null) {
                     setCurrentLog("done")
-                else if (message?.type == "live_status")
+                    if (infiniteLoop) {
+                        console.log("Looping, sending input again");
+                        setPromptTrigger({});
+                    }
+                } else if (message?.type == "live_status") {
                     setCurrentLog(`running - ${message.data?.current_node} ${(message.data.progress * 100).toFixed(2)}%`)
-                else if (message?.type == "elapsed_time")
+                } else if (message?.type == "elapsed_time") {
                     setCurrentLog(`elapsed time: ${Math.ceil(message.data?.elapsed_time * 100) / 100}s`)
+                }
             }
             if (event.data instanceof ArrayBuffer) {
-                console.log("Received binary message:");
+                // console.log("Received binary message:");
                 drawImage(event.data);
             }
         };
@@ -139,8 +161,8 @@ export function WebsocketDemo() {
                         imageMime = "image/webp"
                 }
                 const blob = new Blob([buffer.slice(4 + outputIdSize)], { type: imageMime });
-                const fileSize = blob.size;
-                console.log(`Received image size: ${(fileSize / 1024).toFixed(2)} KB`);
+                // const fileSize = blob.size;
+                // console.log(`Received image size: ${(fileSize / 1024).toFixed(2)} KB`);
 
                 // const blob = new Blob([arrayBuffer], { type: 'image/png' }); // Assuming the image is a JPEG
                 const url = URL.createObjectURL(blob);
@@ -169,24 +191,36 @@ export function WebsocketDemo() {
 
     const pending = (status == "not-connected" || status == "connecting" || status == "reconnecting" || currentLog?.startsWith("running") || (!currentLog && status == "connected"))
 
+
     return (
         <div className='flex md:flex-col gap-2 px-2 flex-col-reverse'>
-            <div className='flex gap-2'>
-                <Badge variant={'outline'} className='w-fit'>Status: {status}</Badge>
-                {(currentLog || status == "connected" || status == "ready") && <Badge variant={'outline'} className='w-fit'>
-                    {currentLog}
-                    {status == "connected" && !currentLog && "stating comfy ui"}
-                    {status == "ready" && !currentLog && " running"}
-                </Badge>}
+            <div className="flex justify-between">
+                <div className='flex gap-2'>
+                    <Badge variant={'outline'} className='w-fit'>Status: {status}</Badge>
+                    {(currentLog || status == "connected" || status == "ready") && <Badge variant={'outline'} className='w-fit'>
+                        {currentLog}
+                        {status == "connected" && !currentLog && "stating comfy ui"}
+                        {status == "ready" && !currentLog && " running"}
+                    </Badge>}
+                </div>
+                <div>
+                    <Toggle
+                        pressed={infiniteLoop}
+                        aria-pressed={infiniteLoop}
+                        onPressedChange={(value) => setInfiniteLoop(value)}
+                    >
+                        <span>♾️</span>
+                    </Toggle>
+                </div>
             </div>
 
             <div className='relative w-full'>
                 <canvas ref={canvasRef} className='rounded-lg ring-1 ring-black/10 w-full aspect-square' width={1024} height={1024}></canvas>
-                {/* {
+                {
                     <><Skeleton className={
                         cn("absolute top-0 left-0 w-full h-full aspect-square opacity-20 transition-opacity", pending ? "visible" : "invisible opacity-0")
                     } /></>
-                } */}
+                }
             </div>
 
 
