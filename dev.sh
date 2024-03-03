@@ -22,4 +22,4 @@ function cleanup {
 
 trap cleanup EXIT
 
-./list_backend_files.sh | entr -crs "./sync.sh && $SSH_CMD -t 'supervisorctl restart comfy && supervisorctl tail -f comfyui stderr & supervisorctl tail -f comfyui stdout'"
+./list_backend_files.sh | entr -crs "./sync.sh && $SSH_CMD -t 'supervisorctl restart comfyui && supervisorctl tail -f comfyui stderr & supervisorctl tail -f comfyui stdout'"
