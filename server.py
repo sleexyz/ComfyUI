@@ -66,6 +66,29 @@ def create_cors_middleware(allowed_origin: str):
 
     return cors_middleware
 
+class LatentQueue():
+    def __init__(self):
+        self.queue = []
+        self.lock = asyncio.Lock()
+
+    def put(self, item):
+        self.queue.append(item)
+
+    def get(self):
+        return self.queue.pop(0)
+
+    def empty(self):
+        return len(self.queue) == 0
+
+    async def wait(self):
+        await self.lock.acquire()
+
+    def release(self):
+        self.lock.release()
+
+    
+
+
 class PromptServer():
     def __init__(self, loop):
         PromptServer.instance = self
@@ -79,6 +102,8 @@ class PromptServer():
         self.loop = loop
         self.messages = asyncio.Queue()
         self.number = 0
+
+        self.latent_queue = LatentQueue()
 
         middlewares = [cache_control]
         if args.enable_cors_header:
