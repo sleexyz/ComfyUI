@@ -21,7 +21,7 @@ export function WebsocketDemo() {
         console.log("status", status)
     }, [status])
     const [promptInput, setPromptInput] = useState('A anime cat');
-    const [debouncedPrompt] = useDebounce(promptInput, 200);
+    // const [debouncedPrompt] = useDebounce(promptInput, 200);
 
     const [currentLog, setCurrentLog] = useState<string>();
 
@@ -43,12 +43,12 @@ export function WebsocketDemo() {
         if (status != "ready")
             return
 
-        const prompt = generatePrompt({ client_id: CLIENT_ID, inputPrompt: debouncedPrompt, lastLatent: lastLatent.current});
+        const prompt = generatePrompt({ client_id: CLIENT_ID, inputPrompt: promptInput, lastLatent: lastLatent.current});
 
         queuePrompt(prompt).then((res) => {
             console.log("Prompt queued", res)
         });
-    }, [ws, status, debouncedPrompt])
+    }, [ws, status, promptInput])
 
     const preStatus = useRef(status)
 
@@ -57,11 +57,6 @@ export function WebsocketDemo() {
             sendInput();
         preStatus.current = status
     }, [status, sendInput])
-
-    useEffect(() => {
-        sendInput();
-    }, [debouncedPrompt])
-
 
     useEffect(() => {
         setStatus("connecting");
@@ -199,6 +194,11 @@ export function WebsocketDemo() {
                 type="text"
                 value={promptInput}
                 onChange={(e) => setPromptInput(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                        sendInput();
+                    }
+                }}
             />
         </div>
     )
