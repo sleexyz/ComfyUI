@@ -10,6 +10,39 @@ import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import actual_best_api_preview from "../../../custom_workflows/actual_best/actual_best_api_preview.json";
 import sixteen_frames_copy_last from "../../../custom_workflows/sixteen_frames_copy_last/sixteen_frames_copy_last_api.json";
+// import { generateTemporalPrompts } from "./PromptDiversification";
+
+import OpenAI from "openai"; 
+
+async function generateTemporalPrompts(promptText: string): Promise<string[]> {
+    try {
+        // const openai = new OpenAI(process.env.OPENAI_API_KEY);
+        const openai = new OpenAI({
+            apiKey: (process.env.NEXT_PUBLIC_OPENAI_API_KEY),
+            dangerouslyAllowBrowser: true
+          })
+        // const openai = new OpenAI(process.env.OPENAI_API_KEY, {
+        //     organization: process.env.OPENAI_ORG_ID // Add this line to include your organization ID
+        // });
+
+        const completion = await openai.chat.completions.create({
+            messages: [{ role: "system", content: "You are an expert scene writer" },
+                    { role: "user", content: `Given the prompt: "${promptText}", generate a series of 5 temporally consistent and imaginative short prompts that 
+                    expand the scene in a narrative sequence. Each prompt must only differ from each other by one or two words. Add objects, actions, and emotion word swaps to the scene.
+                    Separate each prompt with a newline.` },],
+            model: "gpt-4-0613",
+          });
+
+        // Split the response into an array, assuming prompts are separated by newlines
+        console.log("completion:", completion.choices[0].message.content);
+        const promptsArray = completion.choices[0].message.content.trim().split('\n').filter(prompt => prompt.length > 0);
+
+        return promptsArray; 
+    } catch (error) {
+        console.error("Error generating temporal prompts:", error);
+        return []; 
+    }
+}
 
 const CLIENT_ID = uuidv4();
 
@@ -20,7 +53,7 @@ export function WebsocketDemo() {
     useEffect(() => {
         console.log("status", status)
     }, [status])
-    const [promptInput, setPromptInput] = useState('A anime cat');
+    const [promptInput, setPromptInput] = useState('A person jetpacking through a futuristic city at night.');
     // const [debouncedPrompt] = useDebounce(promptInput, 200);
 
     const [currentLog, setCurrentLog] = useState<string>();
@@ -28,6 +61,8 @@ export function WebsocketDemo() {
     const [reconnectCounter, setReconnectCounter] = useState(0)
 
     const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the canvas element
+
+
 
     const lastLatent = useRef<string>("empty_latent_16.latent.png");
     const sendInput = useCallback(() => {
@@ -43,11 +78,34 @@ export function WebsocketDemo() {
         if (status != "ready")
             return
 
-        const prompt = generatePrompt({ client_id: CLIENT_ID, inputPrompt: promptInput, lastLatent: lastLatent.current});
+        // const prompt = generatePrompt({ client_id: CLIENT_ID, inputPrompt: promptInput, lastLatent: lastLatent.current});
 
-        queuePrompt(prompt).then((res) => {
-            console.log("Prompt queued", res)
-        });
+        // (async () => {
+        //     const prompts = await generateTemporalPrompts("A jetpack flying through a futuristic city");
+        //     console.log("Generated Temporal Prompts:", prompts);
+        //   })();
+
+        // queuePrompt(prompt).then((res) => {
+        //     console.log("Prompt queued", res)
+        // });
+
+        (async () => {
+            try {
+              const prompts = await generateTemporalPrompts(promptInput);
+              console.log("Generated Temporal Prompts:", prompts);
+          
+              for (const prompt_i of prompts) {
+                const prompt = generatePrompt({ client_id: CLIENT_ID, inputPrompt: prompt_i, lastLatent: lastLatent.current});
+                console.log("sending input lastLatent:", lastLatent)
+                queuePrompt(prompt).then((res) => {
+                    console.log("Prompt queued", res)
+                });
+              }
+            } catch (error) {
+              console.error("Error processing prompts:", error);
+            }
+          })();
+
     }, [ws, status, promptInput])
 
     const preStatus = useRef(status)
