@@ -32,4 +32,5 @@ function cleanup {
   echo "**********"
 }
 
-$SSH_CMD -t "supervisorctl tail -f cloudflared stderr & supervisorctl tail -f cloudflared stdout"
+$SSH_CMD -t "supervisorctl restart cloudflared & supervisorctl tail -f cloudflared stderr & supervisorctl tail -f cloudflared stdout"
+# $SSH_CMD -t "(supervisorctl stop cloudflared; cloudflared tunnel run --url http://localhost:8188 --token $CLOUDFLARE_DEMO_KEY)"
