@@ -7,10 +7,13 @@ import { Badge } from './ui/badge';
 import { v4 as uuidv4 } from 'uuid';
 import actual_best_api_preview from "../../../custom_workflows/actual_best/actual_best_api_preview.json";
 import sixteen_frames_copy_last from "../../../custom_workflows/sixteen_frames_copy_last/sixteen_frames_copy_last_api.json";
-import OpenAI from "openai"; 
+import OpenAI from "openai";
 import { useLocalStorageState, useRefState } from '@/lib/state';
 import dynamic from 'next/dynamic';
 import { useControls } from 'leva';
+import React from 'react';
+import { usePromptQueue } from './promptQueue';
+
 
 // auto mode
 // text box to input prompt to beginning of prompt queue + fixed prompt traveling otherwise
@@ -24,34 +27,37 @@ async function generateTemporalPrompts(promptText: string): Promise<string[]> {
         const openai = new OpenAI({
             apiKey: (process.env.NEXT_PUBLIC_OPENAI_API_KEY),
             dangerouslyAllowBrowser: true
-          })
+        })
         // const openai = new OpenAI(process.env.OPENAI_API_KEY, {
         //     organization: process.env.OPENAI_ORG_ID // Add this line to include your organization ID
         // });
 
         const completion = await openai.chat.completions.create({
             messages: [{ role: "system", content: "You are an expert scene writer" },
-                    { role: "user", content: `Given the prompt: "${promptText}", generate a series of 5 temporally consistent and imaginative short prompts that 
+            {
+                role: "user", content: `Given the prompt: "${promptText}", generate a series of 5 temporally consistent and imaginative short prompts that 
                     expand the scene in a narrative sequence. Each prompt must only differ from each other by one or two words. Add objects, actions, and emotion word swaps to the scene.
                     Separate each prompt with a newline.` },],
             model: "gpt-4-0613",
-          });
+        });
 
         // Split the response into an array, assuming prompts are separated by newlines
         console.log("completion:", completion.choices[0].message.content);
         const promptsArray = completion.choices[0].message.content.trim().split('\n').filter(prompt => prompt.length > 0);
 
-        return promptsArray; 
+        return promptsArray;
     } catch (error) {
         console.error("Error generating temporal prompts:", error);
-        return []; 
+        return [];
     }
 }
+
 
 // TODO: use ssr
 const Toggle = dynamic(() => import('./ui/toggle').then((mod) => mod.Toggle), { ssr: false });
 
 const CLIENT_ID = uuidv4();
+
 
 export function WebsocketDemo() {
     const [infiniteLoop, setInfiniteLoop] = useLocalStorageState('infinite_loop', false);
@@ -62,7 +68,14 @@ export function WebsocketDemo() {
     useEffect(() => {
         console.log("status", status)
     }, [status])
-    const [promptInput, setPromptInput] = useLocalStorageState<string>("prompt_input", 'A anime cat');
+
+    const { addPromptToQueue,
+        removeFirstPromptFromQueue,
+        refillQueueWithGeneratedPrompts,
+        getPromptQueue } = usePromptQueue();
+
+
+    const [promptInput, setPromptInput] = useLocalStorageState<string>("prompt_input", 'Person jetpack flying through a futuristic city');
     // const [debouncedPrompt] = useDebounce(promptInput, 1000);
 
     const [currentLog, setCurrentLog] = useState<string>();
@@ -70,15 +83,21 @@ export function WebsocketDemo() {
     const [promptTrigger, setPromptTrigger] = useState({});
     const prePromptTrigger = useRef(promptTrigger)
 
-
     const [frames, setFrames, framesRef] = useRefState<ArrayBuffer[]>([]);
-
 
     const [reconnectCounter, setReconnectCounter] = useState(0);
 
-
-
     const lastLatent = useRef<string>("empty_latent_16.latent.png");
+
+    // add to prompt queue
+    useEffect(() => {
+        if (promptInput) {
+            refillQueueWithGeneratedPrompts(promptInput);
+        }
+    }, [promptInput, refillQueueWithGeneratedPrompts]);
+
+
+
     const sendInput = useCallback(() => {
         if (status == "reconnecting" || status == "connecting")
             return
@@ -89,38 +108,31 @@ export function WebsocketDemo() {
             return
         }
 
-        if (status != "ready")
+        if (status != "ready" || getPromptQueue().length == 0) {
             return
+        }
 
-        // const prompt = generatePrompt({ client_id: CLIENT_ID, inputPrompt: promptInput, lastLatent: lastLatent.current});
+        const currentPrompt = getPromptQueue()[0]; // Take the first prompt from the queue
 
-        // (async () => {
-        //     const prompts = await generateTemporalPrompts("A jetpack flying through a futuristic city");
-        //     console.log("Generated Temporal Prompts:", prompts);
-        //   })();
-
-        // queuePrompt(prompt).then((res) => {
-        //     console.log("Prompt queued", res)
-        // });
+        const prompt = generatePrompt({ client_id: CLIENT_ID, inputPrompt: currentPrompt, lastLatent: lastLatent.current });
+        console.log("sending prompt", currentPrompt);
+        // console.log("current prompt queue", promptQueue);
+        console.log("getPromptQueue", getPromptQueue());
 
         (async () => {
             try {
-              const prompts = await generateTemporalPrompts(promptInput);
-              console.log("Generated Temporal Prompts:", prompts);
-          
-              for (const prompt_i of prompts) {
-                const prompt = generatePrompt({ client_id: CLIENT_ID, inputPrompt: prompt_i, lastLatent: lastLatent.current});
-                console.log("sending input lastLatent:", lastLatent)
-                queuePrompt(prompt).then((res) => {
-                    console.log("Prompt queued", res)
-                });
-              }
+                const res = await queuePrompt(prompt); // Use await for asynchronous call
+                console.log("Prompt queued", res);
+                // After processing, remove the processed prompt from the queue and proceed to the next;
+                removeFirstPromptFromQueue();
+                console.log("getPromptQueue after", getPromptQueue());
+
             } catch (error) {
-              console.error("Error processing prompts:", error);
+                console.error("Error queueing prompts:", error);
             }
-          })();
-          
-    }, [ws, status, promptInput])
+        })();
+
+    }, [ws, status]);
 
     const preStatus = useRef(status)
 
@@ -229,6 +241,20 @@ export function WebsocketDemo() {
                 onChange={(e) => setPromptInput(e.target.value)}
                 onKeyDown={(e) => {
                     if (e.key === "Enter") {
+                        addPromptToQueue(promptInput);
+                        console.log("Entered!");
+                        sendInput();
+                    }
+                }}
+            />
+            <Input
+                type="text"
+                value={"Enter to move on!"}
+                onChange={(e) => setPromptInput(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                        // addPromptToQueue(promptInput);
+                        console.log("Entered!");
                         sendInput();
                     }
                 }}
