@@ -1,16 +1,16 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { useDebounce } from "use-debounce";
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
-import { Skeleton } from './ui/skeleton';
-import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import actual_best_api_preview from "../../../custom_workflows/actual_best/actual_best_api_preview.json";
 import sixteen_frames_copy_last from "../../../custom_workflows/sixteen_frames_copy_last/sixteen_frames_copy_last_api.json";
-import { useLocalStorageState } from '@/lib/state';
+import { useLocalStorageState, useRefState } from '@/lib/state';
 import dynamic from 'next/dynamic';
+import { useControls } from 'leva'
+
 
 // TODO: use ssr
 const Toggle = dynamic(() => import('./ui/toggle').then((mod) => mod.Toggle), { ssr: false });
@@ -31,13 +31,14 @@ export function WebsocketDemo() {
 
     const [currentLog, setCurrentLog] = useState<string>();
 
-    const [promptTrigger,setPromptTrigger] = useState({});
+    const [promptTrigger, setPromptTrigger] = useState({});
     const prePromptTrigger = useRef(promptTrigger)
 
 
-    const [reconnectCounter, setReconnectCounter] = useState(0);
+    const [frames, setFrames, framesRef] = useRefState<ArrayBuffer[]>([]);
 
-    const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the canvas element
+
+    const [reconnectCounter, setReconnectCounter] = useState(0);
 
     const lastLatent = useRef<string>("empty_latent_16.latent.png");
     const sendInput = useCallback(() => {
@@ -66,7 +67,7 @@ export function WebsocketDemo() {
         if (preStatus.current != status && status == "ready")
             sendInput();
         preStatus.current = status
-    }, [status, sendInput,  infiniteLoop]);
+    }, [status, sendInput, infiniteLoop]);
 
     useEffect(() => {
         if (prePromptTrigger.current != promptTrigger) {
@@ -104,6 +105,7 @@ export function WebsocketDemo() {
                 }
 
                 if (message?.type == "executing" && message?.data?.node == null) {
+                    // TODO: use ssr
                     setCurrentLog("done")
                     if (infiniteLoop) {
                         console.log("Looping, sending input again");
@@ -117,7 +119,7 @@ export function WebsocketDemo() {
             }
             if (event.data instanceof ArrayBuffer) {
                 // console.log("Received binary message:");
-                drawImage(event.data);
+                setFrames((frames) => [...frames, event.data]);
             }
         };
         websocket.onclose = () => setStatus("closed");
@@ -128,65 +130,6 @@ export function WebsocketDemo() {
         return () => {
             websocket.close();
         };
-    }, []);
-
-    const drawImage = useCallback((arrayBuffer: ArrayBuffer) => {
-        const view = new DataView(arrayBuffer);
-        const eventType = view.getUint32(0);
-        const buffer = arrayBuffer.slice(4);
-        switch (eventType) {
-            case 1:
-                const imageTypeSize = 4
-                const outputIdSize = 24
-
-                // Extract the bytes for the output_id
-                let outputIdBytes = new Uint8Array(buffer, imageTypeSize, outputIdSize);
-                // Convert the bytes to an ASCII string
-                let outputId = new TextDecoder("ascii").decode(outputIdBytes);
-
-                console.log("Extracted output_id:", outputId);
-
-                const view2 = new DataView(arrayBuffer);
-                const imageType = view2.getUint32(0)
-                let imageMime
-                switch (imageType) {
-                    case 1:
-                    default:
-                        imageMime = "image/jpeg";
-                        break;
-                    case 2:
-                        imageMime = "image/png"
-                        break;
-                    case 3:
-                        imageMime = "image/webp"
-                }
-                const blob = new Blob([buffer.slice(4 + outputIdSize)], { type: imageMime });
-                // const fileSize = blob.size;
-                // console.log(`Received image size: ${(fileSize / 1024).toFixed(2)} KB`);
-
-                // const blob = new Blob([arrayBuffer], { type: 'image/png' }); // Assuming the image is a JPEG
-                const url = URL.createObjectURL(blob);
-
-                const canvas = canvasRef.current;
-                const ctx = canvas?.getContext('2d');
-
-                if (ctx) {
-                    console.log("drawing");
-
-                    const img = new Image();
-                    img.onload = () => {
-                        if (canvas) {
-                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        }
-                        URL.revokeObjectURL(url); // Clean up
-                    };
-                    img.src = url;
-                }
-                // this.dispatchEvent(new CustomEvent("b_preview", { detail: imageBlob }));
-                break;
-            default:
-                throw new Error(`Unknown binary websocket message of type ${eventType}`);
-        }
     }, []);
 
     const pending = (status == "not-connected" || status == "connecting" || status == "reconnecting" || currentLog?.startsWith("running") || (!currentLog && status == "connected"))
@@ -215,12 +158,7 @@ export function WebsocketDemo() {
             </div>
 
             <div className='relative w-full'>
-                <canvas ref={canvasRef} className='rounded-lg ring-1 ring-black/10 w-full aspect-square' width={1024} height={1024}></canvas>
-                {
-                    <><Skeleton className={
-                        cn("absolute top-0 left-0 w-full h-full aspect-square opacity-20 transition-opacity", pending ? "visible" : "invisible opacity-0")
-                    } /></>
-                }
+                <Player frames={frames} framesRef={framesRef} />
             </div>
 
 
@@ -236,6 +174,101 @@ export function WebsocketDemo() {
             />
         </div>
     )
+}
+function Player(props: { frames: ArrayBuffer[], framesRef: MutableRefObject<ArrayBuffer[]> }) {
+    const canvasRef = useRef<HTMLCanvasElement>(null); // Reference to the canvas element
+    const drawImage = useCallback((arrayBuffer: ArrayBuffer) => {
+        const view = new DataView(arrayBuffer);
+        const eventType = view.getUint32(0);
+        const buffer = arrayBuffer.slice(4);
+        switch (eventType) {
+            case 1:
+                const imageTypeSize = 4
+                const outputIdSize = 24
+
+                // Extract the bytes for the output_id
+                let outputIdBytes = new Uint8Array(buffer, imageTypeSize, outputIdSize);
+                // Convert the bytes to an ASCII string
+                let outputId = new TextDecoder("ascii").decode(outputIdBytes);
+
+                const view2 = new DataView(arrayBuffer);
+                const imageType = view2.getUint32(0)
+                let imageMime
+                switch (imageType) {
+                    case 1:
+                    default:
+                        imageMime = "image/jpeg";
+                        break;
+                    case 2:
+                        imageMime = "image/png"
+                        break;
+                    case 3:
+                        imageMime = "image/webp"
+                }
+                const blob = new Blob([buffer.slice(4 + outputIdSize)], { type: imageMime });
+                // const fileSize = blob.size;
+                // console.log(`Received image size: ${(fileSize / 1024).toFixed(2)} KB`);
+
+                // const blob = new Blob([arrayBuffer], { type: 'image/png' }); // Assuming the image is a JPEG
+                const url = URL.createObjectURL(blob);
+
+                const canvas = canvasRef.current;
+                const ctx = canvas?.getContext('2d');
+
+                if (ctx) {
+                    const img = new Image();
+                    img.onload = () => {
+                        if (canvas) {
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        }
+                        URL.revokeObjectURL(url); // Clean up
+                    };
+                    img.src = url;
+                }
+                // this.dispatchEvent(new CustomEvent("b_preview", { detail: imageBlob }));
+                break;
+            default:
+                throw new Error(`Unknown binary websocket message of type ${eventType}`);
+        }
+    }, []);
+
+    const [{ play, fps, frameIndex }, set] = useControls(() => ({
+        fps: window.localStorage.getItem("fps") || 8,
+        play: true,
+        frameIndex: { value: 0, min: 0, max: Math.max(props.frames.length - 1, 0), step: 1, label: "Frame" }
+    }), [props.frames.length]);
+    useEffect(() => {
+        window.localStorage.setItem("fps", fps.toString());
+    }, [fps]);
+
+
+    useEffect(() => {
+        if (play) {
+            const interval = setInterval(() => {
+                let nextFrameIndex = frameIndex;
+                if (props.framesRef.current.length === 0) {
+                    return
+                }
+
+                nextFrameIndex = (frameIndex + 1) % props.framesRef.current.length;
+                set({ frameIndex: nextFrameIndex });
+            }, 1000 / fps);
+            return () => clearInterval(interval);
+        }
+    }, [play, fps, frameIndex, props.framesRef, set]);
+
+    useEffect(() => {
+        if (props.frames.length > 0) {
+            const frame = props.frames[frameIndex];
+            if (frame) {
+                drawImage(frame);
+            }
+        }
+    }, [frameIndex, props.frames, drawImage]);
+
+    return (
+        <canvas ref={canvasRef} className='rounded-lg ring-1 ring-black/10 w-full aspect-square' width={1024} height={1024}></canvas>
+    );
 }
 
 async function queuePrompt(prompt: any): Promise<any> {

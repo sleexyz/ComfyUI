@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // useState but load initial state from local storage and save state to local storage
 export function useLocalStorageState<T>(key: string, defaultValue: T): [T, (value: T) => void] {
@@ -21,3 +21,13 @@ export function useLocalStorageState<T>(key: string, defaultValue: T): [T, (valu
     return [state, setState];
 }
 
+
+
+export function useRefState<T>(initialState: T) {
+    const [state, setState] = useState(initialState);
+    const stateRef = useRef(state);
+    useEffect(() => {
+        stateRef.current = state;
+    }, [state]);
+    return [state, setState, stateRef] as const;
+}
