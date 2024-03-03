@@ -76,13 +76,13 @@ else
     (cd $this_node_dir && git pull)
 fi
 
-# ComfyUI-AnimateDiff-Evolved
-this_node_dir=${nodes_dir}/ComfyUI-AnimateDiff-Evolved
-if [[ ! -d $this_node_dir ]]; then
-    git clone https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved $this_node_dir
-else
-    (cd $this_node_dir && git pull)
-fi
+# # ComfyUI-AnimateDiff-Evolved
+# this_node_dir=${nodes_dir}/ComfyUI-AnimateDiff-Evolved
+# if [[ ! -d $this_node_dir ]]; then
+#     git clone https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved $this_node_dir
+# else
+#     (cd $this_node_dir && git pull)
+# fi
 
 # comfyui-animatediff
 # this_node_dir=${nodes_dir}/comfyui-animatediff
