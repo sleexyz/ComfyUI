@@ -136,7 +136,7 @@ export function WebsocketDemo() {
 
 
     return (
-        <div className='flex md:flex-col gap-2 px-2 flex-col-reverse'>
+        <div className='flex md:flex-col gap-2 flex-col-reverse'>
             <div className="flex justify-between">
                 <div className='flex gap-2'>
                     <Badge variant={'outline'} className='w-fit'>Status: {status}</Badge>
@@ -162,16 +162,18 @@ export function WebsocketDemo() {
             </div>
 
 
-            <Input
-                type="text"
-                value={promptInput}
-                onChange={(e) => setPromptInput(e.target.value)}
-                onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                        sendInput();
-                    }
-                }}
-            />
+            <div className='fixed bottom-0 left-1/2 transform -translate-x-1/2 bg-white/30 backdrop-blur-lg p-4 rounded-lg flex gap-2 mb-20 w-[40vw]'>
+                <Input
+                    type="text"
+                    value={promptInput}
+                    onChange={(e) => setPromptInput(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                            sendInput();
+                        }
+                    }}
+                />
+            </div>
         </div>
     )
 }
@@ -274,7 +276,7 @@ function Player(props: { frames: ArrayBuffer[], framesRef: MutableRefObject<Arra
     }, [frameIndex, props.frames, drawImage]);
 
     return (
-        <canvas ref={canvasRef} className='rounded-lg ring-1 ring-black/10 w-full aspect-square' width={1024} height={1024}></canvas>
+        <canvas ref={canvasRef} className='rounded-lg ring-1 ring-black/10 aspect-square w-[100vmax] h-[100vmax]' width={1024} height={1024}></canvas>
     );
 }
 
