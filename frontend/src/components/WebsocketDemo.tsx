@@ -232,14 +232,17 @@ function Player(props: { frames: ArrayBuffer[], framesRef: MutableRefObject<Arra
         }
     }, []);
 
-    const [{ play, fps, frameIndex }, set] = useControls(() => ({
-        fps: window.localStorage.getItem("fps") || 8,
+    const [{ play, loop, fps, frameIndex }, set] = useControls(() => ({
+        fps: Number(window.localStorage.getItem("fps")) || 8,
         play: true,
+        loop: window.localStorage.getItem("loop") == "true" || false,
         frameIndex: { value: 0, min: 0, max: Math.max(props.frames.length - 1, 0), step: 1, label: "Frame" }
     }), [props.frames.length]);
+
     useEffect(() => {
         window.localStorage.setItem("fps", fps.toString());
-    }, [fps]);
+        window.localStorage.setItem("loop", loop.toString());
+    }, [fps, loop]);
 
 
     useEffect(() => {
@@ -250,7 +253,11 @@ function Player(props: { frames: ArrayBuffer[], framesRef: MutableRefObject<Arra
                     return
                 }
 
-                nextFrameIndex = (frameIndex + 1) % props.framesRef.current.length;
+                if (loop) {
+                    nextFrameIndex = (frameIndex + 1) % props.framesRef.current.length;
+                } else {
+                    nextFrameIndex = Math.min(frameIndex + 1, props.framesRef.current.length - 1);
+                }
                 set({ frameIndex: nextFrameIndex });
             }, 1000 / fps);
             return () => clearInterval(interval);
