@@ -7,4 +7,19 @@ if [ ! -f .ssh_cmd ]; then
 fi
 SSH_CMD=$(cat .ssh_cmd)
 
-./list_backend_files.sh | entr -crs "./sync.sh && $SSH_CMD -t '(pkill python; cd /workspace/ComfyUI; python main.py --enable-cors-header http://localhost:3000)'"
+
+function cleanup {
+  echo ""
+  echo ""
+  echo ""
+  echo "**********"
+  echo "ComfyUI is still running in the background."
+  echo "Run 'supervisorctl stop comfyui' to stop it."
+  echo "Run 'supervisorctl start comfyui' to start it."
+  echo "Run 'supervisorctl restart comfyui' to restart it."
+  echo "**********"
+}
+
+trap cleanup EXIT
+
+./list_backend_files.sh | entr -crs "./sync.sh && $SSH_CMD -t 'supervisorctl tail -f comfyui stderr & supervisorctl tail -f comfyui stdout'"

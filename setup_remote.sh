@@ -17,6 +17,19 @@ CLOUDFLARE_DEMO_KEY=$(cat .cloudflare_demo_key)
 
 
 if [ "$1" != "--no_provision" ]; then
-  $SSH_CMD -t 'bash -s' < provisioning/provision.sh 
+  $SSH_CMD -t "CLOUDFLARE_DEMO_KEY=$CLOUDFLARE_DEMO_KEY bash -s" < provisioning/provision.sh 
 fi
-$SSH_CMD -t "cloudflared tunnel run --url http://localhost:8188 --token $CLOUDFLARE_DEMO_KEY"
+
+function cleanup {
+  echo ""
+  echo ""
+  echo ""
+  echo "**********"
+  echo "cloudflared is still running in the background."
+  echo "Run 'supervisorctl stop cloudflared' to stop it."
+  echo "Run 'supervisorctl start cloudflared' to start it."
+  echo "Run 'supervisorctl restart cloudflared' to restart it."
+  echo "**********"
+}
+
+$SSH_CMD -t "supervisorctl tail -f cloudflared stderr & supervisorctl tail -f cloudflared stdout"

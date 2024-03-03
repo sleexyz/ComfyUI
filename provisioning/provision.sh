@@ -27,7 +27,9 @@ function download() {
 
 ### Load development dependencies
 apt-get update
-apt-get -y install ranger entr vim tmux rsync
+apt-get -y install ranger entr vim tmux rsync supervisor
+
+
 
 # Install comfyui
 git clone http://github.com/sleexyz/ComfyUI /workspace/ComfyUI
@@ -193,3 +195,32 @@ if [[ ! -e ${model_file} ]]; then
     printf "Downloading v3_sd15_adapter.ckpt...\n"
     download ${model_url} ${model_file}
 fi
+
+# Error if $CLOUDFLARE_DEMO_KEY is not set
+if [[ -z $CLOUDFLARE_DEMO_KEY ]]; then
+    echo "CLOUDFLARE_DEMO_KEY is not set"
+    exit 1
+fi
+
+cat << EOF > /etc/supervisor/conf.d/supervisord.conf
+[program:comfyui]
+command=/bin/bash -c "cd /workspace/ComfyUI && python main.py --enable-cors-header http://localhost:3000"
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/comfyui.err.log
+stdout_logfile=/var/log/comfyui.out.log
+
+[program:cloudflared]
+command=/usr/local/bin/cloudflared tunnel run --url http://localhost:8188 --token $CLOUDFLARE_DEMO_KEY
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/cloudflared.err.log
+stdout_logfile=/var/log/cloudflared.out.log
+EOF
+
+supervisord -c /etc/supervisor/supervisord.conf
+supervisorctl update
+supervisorctl start all
+
+echo "*********************"
+echo "Provisioning complete"
