@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import useSWR from 'swr'
 import { useDebounce } from "use-debounce";
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -10,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import actual_best_api_preview from "../../../custom_workflows/actual_best/actual_best_api_preview.json";
 import sixteen_frames_copy_last from "../../../custom_workflows/sixteen_frames_copy_last/sixteen_frames_copy_last_api.json";
+import { useLocalStorageState } from '@/lib/state';
 
 const CLIENT_ID = uuidv4();
 
@@ -20,7 +20,7 @@ export function WebsocketDemo() {
     useEffect(() => {
         console.log("status", status)
     }, [status])
-    const [promptInput, setPromptInput] = useState('A anime cat');
+    const [promptInput, setPromptInput] = useLocalStorageState<string>("prompt_input", 'A anime cat');
     // const [debouncedPrompt] = useDebounce(promptInput, 200);
 
     const [currentLog, setCurrentLog] = useState<string>();
@@ -43,7 +43,7 @@ export function WebsocketDemo() {
         if (status != "ready")
             return
 
-        const prompt = generatePrompt({ client_id: CLIENT_ID, inputPrompt: promptInput, lastLatent: lastLatent.current});
+        const prompt = generatePrompt({ client_id: CLIENT_ID, inputPrompt: promptInput, lastLatent: lastLatent.current });
 
         queuePrompt(prompt).then((res) => {
             console.log("Prompt queued", res)
@@ -79,7 +79,7 @@ export function WebsocketDemo() {
                 if (message?.type == "progress") {
                     const numerator = message.data?.value || 0;
                     const denominator = message.data?.max || 1;
-                    setCurrentLog(`generating... ${(numerator/denominator * 100).toFixed(0)}%`)
+                    setCurrentLog(`generating... ${(numerator / denominator * 100).toFixed(0)}%`)
                 }
                 if (message?.type == "latent-send") {
                     lastLatent.current = message.data?.images[0].filename;
@@ -246,7 +246,7 @@ function getNodeWithTitle(prompt: Prompt, title: string): string {
 }
 
 // export async function updatePrompt(firstBatch: boolean, inputPrompt: string) {
-export function generatePrompt({ client_id, inputPrompt, lastLatent }: { client_id: string, inputPrompt: string, lastLatent: string}) {
+export function generatePrompt({ client_id, inputPrompt, lastLatent }: { client_id: string, inputPrompt: string, lastLatent: string }) {
     const prompt = clone(sixteen_frames_copy_last);
 
     // Set the text prompt for our positive CLIPTextEncode
