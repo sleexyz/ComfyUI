@@ -10,9 +10,13 @@ import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import actual_best_api_preview from "../../../custom_workflows/actual_best/actual_best_api_preview.json";
 import sixteen_frames_copy_last from "../../../custom_workflows/sixteen_frames_copy_last/sixteen_frames_copy_last_api.json";
-// import { generateTemporalPrompts } from "./PromptDiversification";
-
 import OpenAI from "openai"; 
+
+// auto mode
+// text box to input prompt to beginning of prompt queue + fixed prompt traveling otherwise
+// non auto mode
+// text box to input prompt to beginning of prompt queue + choice of prompt to send next (gpt4 generated)
+
 
 async function generateTemporalPrompts(promptText: string): Promise<string[]> {
     try {
