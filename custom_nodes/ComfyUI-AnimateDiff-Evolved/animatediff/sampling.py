@@ -21,7 +21,7 @@ from .utils_model import ModelTypeSD, wrap_function_to_inject_xformers_bug_info
 from .model_injection import InjectionParams, ModelPatcherAndInjector, MotionModelGroup, MotionModelPatcher
 from .motion_module_ad import AnimateDiffFormat, AnimateDiffInfo, AnimateDiffVersion, VanillaTemporalModule
 from .logger import logger
-from server import PromptServer
+from latent_queue import LatentQueue
 
 
 ##################################################################################
@@ -323,7 +323,6 @@ def motion_sample_factory(orig_comfy_sample: Callable, is_custom: bool=False) ->
                         device=model.current_device, sampler=args[-5],
                         scheduler=args[-4], denoise=kwargs.get("denoise", None),
                         model_options=model.model_options)
-
             for curr_i in range(iter_opts.iterations):
                 # handle GLOBALSTATE vars and step tally
                 ADGS.update_with_inject_params(params)
@@ -526,8 +525,10 @@ def sliding_calc_cond_uncond_batch(model, cond, uncond, x_in: Tensor, timestep, 
             cond_final_leaked = cond_final[full_idxs] / out_count_final[full_idxs]
             uncond_final_leaked = uncond_final[full_idxs] / out_count_final[full_idxs]
             cfg_result = uncond_final_leaked + (cond_final_leaked - uncond_final_leaked) * cond_scale
-            print(f"cfg_result: {cfg_result.shape}")
-            PromptServer.instance.latent_queue.put(cfg_result)
+            samples = model.process_latent_out(cfg_result.to(torch.float32))
+            LatentQueue.instance.stage(samples)
+            LatentQueue.instance.put_staged()
+            LatentQueue.instance.get_and_send()
 
     if ADGS.params.context_options.fuse_method == ContextFuseMethod.RELATIVE:
         # already normalized, so return as is

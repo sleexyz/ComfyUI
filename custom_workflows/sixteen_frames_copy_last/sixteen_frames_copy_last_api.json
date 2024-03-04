@@ -115,8 +115,8 @@
   },
   "52": {
     "inputs": {
-      "euler_steps": 2,
-      "lcm_steps": 2,
+      "euler_steps": 1,
+      "lcm_steps": 1,
       "tweak_sigmas": false,
       "ancestral": 0
     },

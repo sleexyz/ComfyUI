@@ -64,8 +64,9 @@ export function WebsocketDemo() {
     const preStatus = useRef(status)
 
     useEffect(() => {
-        if (preStatus.current != status && status == "ready")
+        if (preStatus.current != status && status == "ready" && infiniteLoop) {
             sendInput();
+        }
         preStatus.current = status
     }, [status, sendInput, infiniteLoop]);
 
@@ -143,7 +144,6 @@ export function WebsocketDemo() {
                     {(currentLog || status == "connected" || status == "ready") && <Badge variant={'outline'} className='w-fit'>
                         {currentLog}
                         {status == "connected" && !currentLog && "stating comfy ui"}
-                        {status == "ready" && !currentLog && " running"}
                     </Badge>}
                 </div>
                 <div>
@@ -276,7 +276,9 @@ function Player(props: { frames: ArrayBuffer[], framesRef: MutableRefObject<Arra
     }, [frameIndex, props.frames, drawImage]);
 
     return (
-        <canvas ref={canvasRef} className='rounded-lg ring-1 ring-black/10 aspect-square w-[100vmax] h-[100vmax]' width={1024} height={1024}></canvas>
+        <div className="flex h-100 justify-center">
+            <canvas ref={canvasRef} className='rounded-lg ring-1 ring-black/10 aspect-square w-[90vmin] h-[90vmin]' width={1024} height={1024}></canvas>
+        </div>
     );
 }
 

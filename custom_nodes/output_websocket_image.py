@@ -1,11 +1,5 @@
-import folder_paths
-from PIL import Image, ImageOps
-import numpy as np
-import torch
-from server import PromptServer, BinaryEventTypes
-import asyncio
-
-from globals import send_image, max_output_id_length
+from globals import max_output_id_length
+from latent_queue import LatentQueue
 
 class ComfyDeployWebscoketImageOutput:
     @classmethod
@@ -49,21 +43,7 @@ class ComfyDeployWebscoketImageOutput:
         return True
 
     def run(self, output_id, images, file_type, quality, client_id):
-        prompt_server = PromptServer.instance
-        loop = prompt_server.loop
-        
-        def schedule_coroutine_blocking(target, *args):
-            future = asyncio.run_coroutine_threadsafe(target(*args), loop)
-            return future.result()  # This makes the call blocking
-        
-        for tensor in images:
-            array = 255.0 * tensor.cpu().numpy()
-            image = Image.fromarray(np.clip(array, 0, 255).astype(np.uint8))
-            print(f"client_id: {client_id}")
-
-            schedule_coroutine_blocking(send_image, [file_type, image, None, quality], client_id, output_id)
-            print("Image sent")
-
+        LatentQueue.instance.send_images(images, client_id, output_id, file_type, quality)
         return {"ui": {}}
         
 
