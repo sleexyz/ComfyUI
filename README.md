@@ -10,11 +10,12 @@ https://www.runpod.io/console/explore/runpod-torch-v220
 
 ## set up dependencies and run cloudflared
 
+prerequisites: [`bun`](https://bun.sh/docs/installation#installing)
+
 Local:
 ```
-./setup_remote.sh
+./pod.sh
 ```
-
 
 
 ## run comfy
@@ -42,7 +43,6 @@ local:
 
 ## run local client
 
-prerequisites: [`bun`](https://bun.sh/docs/installation#installing)
 
 copy `frontend/.env.example` over to `frontend/.env` with the appropriate values.
 

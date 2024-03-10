@@ -20,5 +20,6 @@ venv/
 /user/
 *.log
 .ssh_cmd
+.active_pod
 .cloudflare_demo_key
 
