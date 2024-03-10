@@ -47,6 +47,8 @@ disabled_nodes_dir=/workspace/ComfyUI/custom_nodes
 models_dir=/workspace/ComfyUI/models
 animatediff_models_dir=/workspace/ComfyUI/models/animatediff_models
 mkdir -p $animatediff_models_dir
+unet_dir=${models_dir}/unet
+mkdir -p $unet_dir
 checkpoints_dir=${models_dir}/checkpoints
 vae_dir=${models_dir}/vae
 controlnet_dir=${models_dir}/controlnet
@@ -189,8 +191,47 @@ if [[ ! -e ${model_file} ]]; then
     download ${model_url} ${model_file}
 fi
 
+
+if [[ $SDXL == "true" ]]; then
+    model_file=${animatediff_models_dir}/mm_sdxl_v10_beta.ckpt
+    model_url=https://huggingface.co/guoyww/animatediff/resolve/main/mm_sdxl_v10_beta.ckpt
+    if [[ ! -e ${model_file} ]]; then
+        printf "Downloading mm_sdxl_v10_beta.ckpt...\n"
+        download ${model_url} ${model_file}
+    fi
+
+    model_file=${animatediff_models_dir}/hotshotxl_mm_v1.pth
+    model_url="https://huggingface.co/Kosinkadink/HotShot-XL-MotionModels/resolve/main/hotshotxl_mm_v1.pth?download=true"
+    if [[ ! -e ${model_file} ]]; then
+        printf "Downloading hotshotxl_mm_v1.pth...\n"
+        download ${model_url} ${model_file}
+    fi
+
+    model_file=${checkpoints_dir}/sd_xl_base_1.0.safetensors
+    model_url="https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors"
+    if [[ ! -e ${model_file} ]]; then
+        printf "Downloading sd_xl_base_1.0.safetensors...\n"
+        download ${model_url} ${model_file}
+    fi
+
+    # model_file=${checkpoints_dir}/juggernautXL_v9Rdphoto2Lightning.safetensors
+    # model_url="https://civitai.com/api/download/models/357609?type=Model&format=SafeTensor&size=full&fp=fp16"
+    # if [[ ! -e ${model_file} ]]; then
+    #     printf "Downloading juggernautXL_v9Rdphoto2Lightning.safetensors...\n"
+    #     download ${model_url} ${model_file}
+    # fi
+
+    model_file=${unet_dir}/sdxl_lightning_1step_unet_x0.safetensors
+    model_url=https://huggingface.co/ByteDance/SDXL-Lightning/resolve/main/sdxl_lightning_1step_unet_x0.safetensors
+    if [[ ! -e ${model_file} ]]; then
+        printf "Downloading sdxl_lightning_1step_unet_x0.safetensors...\n"
+        download ${model_url} ${model_file}
+    fi
+fi
+
+
 model_file=${loras_dir}/v3_sd15_adapter.ckpt
-model_url=https://huggingface.co/conrevo/AnimateDiff-A1111/resolve/main/lora/mm_sd15_v3_adapter.safetensors?download=true
+model_url=https://huggingface.co/guoyww/animatediff/resolve/main/v3_sd15_adapter.ckpt
 if [[ ! -e ${model_file} ]]; then
     printf "Downloading v3_sd15_adapter.ckpt...\n"
     download ${model_url} ${model_file}
