@@ -9,6 +9,9 @@ from server import PromptServer
 
 from pydantic import BaseModel as PydanticBaseModel
 
+
+force_causal = True
+
 class BaseModel(PydanticBaseModel):
     class Config:
         arbitrary_types_allowed = True

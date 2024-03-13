@@ -185,7 +185,7 @@ if [[ ! -e ${model_file} ]]; then
 fi
 
 model_file=${animatediff_models_dir}/v3_sd15_mm.ckpt
-model_url=https://huggingface.co/guoyww/animatediff/resolve/main/v3_sd15_adapter.ckpt
+model_url=https://huggingface.co/guoyww/animatediff/resolve/main/v3_sd15_mm.ckpt
 if [[ ! -e ${model_file} ]]; then
     printf "Downloading v3_sd15_mm.ckpt...\n"
     download ${model_url} ${model_file}
@@ -228,7 +228,6 @@ if [[ $SDXL == "true" ]]; then
         download ${model_url} ${model_file}
     fi
 fi
-
 
 model_file=${loras_dir}/v3_sd15_adapter.ckpt
 model_url=https://huggingface.co/guoyww/animatediff/resolve/main/v3_sd15_adapter.ckpt

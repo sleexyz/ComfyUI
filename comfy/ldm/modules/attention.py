@@ -333,7 +333,7 @@ def attention_xformers(q, k, v, heads, mask=None):
     )
     return out
 
-def attention_pytorch(q, k, v, heads, mask=None):
+def attention_pytorch(q, k, v, heads, mask=None, is_causal=False):
     b, _, dim_head = q.shape
     dim_head //= heads
     q, k, v = map(
@@ -341,7 +341,7 @@ def attention_pytorch(q, k, v, heads, mask=None):
         (q, k, v),
     )
 
-    out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask, dropout_p=0.0, is_causal=False)
+    out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask, dropout_p=0.0, is_causal=is_causal)
     out = (
         out.transpose(1, 2).reshape(b, -1, heads * dim_head)
     )
