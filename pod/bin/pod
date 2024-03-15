@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# TODO: move to ../
+
+OP="setup"
+ARGS="$@"
+
+PROJECT_ROOT="$(dirname $0)/../.."
+POD_ROOT="$(dirname $0)/.."
+
+source "$PROJECT_ROOT/pod_config/.pod.env"
+
+
+bun run "$POD_ROOT/pod.ts" $ARGS

@@ -1,5 +1,12 @@
 #!/usr/bin/env -S bun
 
+export interface Remote {
+  ip: string;
+  port: number;
+  user: string;
+  source: 'runpod' | 'override';
+}
+
 export interface Pod {
   id: string;
   name: string;
@@ -75,12 +82,12 @@ async function getPods(): Promise<Pod[]> {
   return result.data.myself.pods;
 }
 
-export interface Context {
+export interface RunPodContext {
   pods: Pod[] | null;
   activePod: Pod | null;
 }
 
-export function getFirstPod(ctx: Context): Pod | null {
+export function getFirstPod(ctx: RunPodContext): Pod | null {
   const pods = ctx.pods;
   if (!pods || pods.length === 0) {
     console.error('No pods found');
@@ -92,15 +99,17 @@ export function getFirstPod(ctx: Context): Pod | null {
   return pods[0];
 }
 
-export async function refreshState(ctx: Context): Promise<void> {
+export async function refreshState(ctx: RunPodContext): Promise<void> {
   ctx.pods = await getPods();
   const firstPod = getFirstPod(ctx);
   if (firstPod && firstPod.runtime) {
     ctx.activePod = firstPod;
+  } else {
+    delete ctx.activePod;
   }
 }
 
-export async function ensureActivePodIsLoaded(ctx: Context): Promise<void> {
+export async function ensureActivePodIsLoaded(ctx: RunPodContext): Promise<void> {
   if (ctx.activePod) {
     return;
   }
@@ -142,13 +151,22 @@ async function retry<T>(options: { timeout: number, delay?: number, customErrorM
   throw lastError;
 }
 
-export function getSSHCommand(podRuntime: PodRuntime) {
+
+export function getRemoteFromPodRuntime(podRuntime: PodRuntime): Remote {
   const sshPort = podRuntime.ports.find((port) => port.privatePort === 22);
   if (!sshPort) {
-    console.error('No SSH port found');
-    process.exit(1);
+    throw new Error('No SSH port found');
   }
-  return `ssh root@${sshPort?.ip} -p ${sshPort?.publicPort} -i ~/.ssh/id_ed25519`;
+  return {
+    ip: sshPort.ip,
+    port: sshPort.publicPort,
+    user: 'root',
+    source: 'runpod',
+  };
+}
+
+export function getSshCmd(remote: Remote): string {
+  return `ssh ${remote?.user}@${remote?.ip} -p ${remote?.port} -i ~/.ssh/id_ed25519`;
 }
 
 function startPodMutation(podId: string) {
@@ -184,12 +202,13 @@ async function startPod(podId: string): Promise<void> {
 }
 
 
-export async function stopPodAndWait(ctx: Context): Promise<void> {
+export async function stopPodAndWait(ctx: RunPodContext): Promise<void> {
   await stopPod(ctx);
   retry({
     timeout: 2 * 60 * 1000, delay: 5000,
   }, async () => {
     await refreshState(ctx);
+
     if (!ctx.activePod) {
       return;
     }
@@ -198,7 +217,7 @@ export async function stopPodAndWait(ctx: Context): Promise<void> {
   console.log('Pod stopped');
 }
 
-async function stopPod(context: Context): Promise<void> {
+async function stopPod(context: RunPodContext): Promise<void> {
   const activePod = context.activePod;
   if (!activePod) {
     throw new Error('No active pod to stop');

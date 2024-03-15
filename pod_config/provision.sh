@@ -16,6 +16,11 @@ else
   exit 1
 fi
 
+if [[ -z $REMOTE_DIR ]]; then
+    echo "REMOTE_DIR is not set"
+    exit 1
+fi
+
 
 # This file will be sourced in init.sh
 
@@ -26,26 +31,36 @@ function download() {
 
 
 ### Load development dependencies
-apt-get update
-apt-get -y install ranger entr vim tmux rsync supervisor
-
-
+sudo apt-get update
+sudo apt-get -y install rsync supervisor
 
 # Install comfyui
-git clone http://github.com/sleexyz/ComfyUI /workspace/ComfyUI
-(cd /workspace/ComfyUI; pip install -r requirements.txt)
+git clone http://github.com/sleexyz/ComfyUI $REMOTE_DIR
+
+CONDA_BIN=$HOME/miniconda3/bin
+export PATH=$CONDA_BIN:$PATH
+
+if conda info --envs | grep -q inf; then 
+    echo "base already exists"
+else 
+    conda create -y -p $REMOTE_DIR/venv python=3.10
+fi
+
+source activate $REMOTE_DIR/venv
+
+(cd $REMOTE_DIR; pip install -r requirements.txt)
 
 # install cloudflared
 if [[ ! -e /usr/local/bin/cloudflared ]]; then
-    (wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb;dpkg -i cloudflared-linux-amd64.deb)
+    mkdir -p /tmp/cloudflared
+    (cd /tmp/cloudflared; wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb; sudo dpkg -i cloudflared-linux-amd64.deb)
 fi
 
-
 ## Set paths
-nodes_dir=/workspace/ComfyUI/custom_nodes
-disabled_nodes_dir=/workspace/ComfyUI/custom_nodes
-models_dir=/workspace/ComfyUI/models
-animatediff_models_dir=/workspace/ComfyUI/models/animatediff_models
+nodes_dir=$REMOTE_DIR/custom_nodes
+disabled_nodes_dir=$REMOTE_DIR/custom_nodes
+models_dir=$REMOTE_DIR/models
+animatediff_models_dir=$REMOTE_DIR/models/animatediff_models
 mkdir -p $animatediff_models_dir
 unet_dir=${models_dir}/unet
 mkdir -p $unet_dir
@@ -112,23 +127,24 @@ else
     (cd $this_node_dir && git pull)
 fi
 
-this_node_dir=${nodes_dir}/ComfyUI-sampler-lcm-alternative
-if [[ ! -d $this_node_dir ]]; then
-    git clone https://github.com/jojkaart/ComfyUI-sampler-lcm-alternative $this_node_dir
-else
-    (cd $this_node_dir && git pull)
-fi
+# this_node_dir=${nodes_dir}/ComfyUI-sampler-lcm-alternative
+# if [[ ! -d $this_node_dir ]]; then
+#     git clone https://github.com/jojkaart/ComfyUI-sampler-lcm-alternative $this_node_dir
+# else
+#     (cd $this_node_dir && git pull)
+# fi
 
 ### Download checkpoints
 
 ## Animated
 # mm_sd_v15_v2
-model_file=${animatediff_models_dir}/mm_sd_v15_v2.ckpt
-model_url=https://huggingface.co/guoyww/animatediff/resolve/main/mm_sd_v15_v2.ckpt
-if [[ ! -e ${model_file} ]]; then
-    printf "mm_sd_v15_v2.ckpt...\n"
-    download ${model_url} ${model_file}
-fi
+
+# model_file=${animatediff_models_dir}/mm_sd_v15_v2.ckpt
+# model_url=https://huggingface.co/guoyww/animatediff/resolve/main/mm_sd_v15_v2.ckpt
+# if [[ ! -e ${model_file} ]]; then
+#     printf "mm_sd_v15_v2.ckpt...\n"
+#     download ${model_url} ${model_file}
+# fi
 
 ## Standard
 # v1-5-pruned-emaonly
@@ -156,26 +172,26 @@ fi
 # fi
 
 # AnimateLCM_sd15_t2v.ckpt
-model_file=${animatediff_models_dir}/AnimateLCM_sd15_t2v.ckpt
-model_url=https://huggingface.co/wangfuyun/AnimateLCM/resolve/main/AnimateLCM_sd15_t2v.ckpt?download=true
-if [[ ! -e ${model_file} ]]; then
-    printf "Downloading AnimateLCM_sd15_t2v.ckpt...\n"
-    download ${model_url} ${model_file}
-fi
+# model_file=${animatediff_models_dir}/AnimateLCM_sd15_t2v.ckpt
+# model_url=https://huggingface.co/wangfuyun/AnimateLCM/resolve/main/AnimateLCM_sd15_t2v.ckpt?download=true
+# if [[ ! -e ${model_file} ]]; then
+#     printf "Downloading AnimateLCM_sd15_t2v.ckpt...\n"
+#     download ${model_url} ${model_file}
+# fi
 
-model_file=${loras_dir}/AnimateLCM_sd15_t2v_lora.safetensors
-model_url=https://huggingface.co/wangfuyun/AnimateLCM/resolve/main/AnimateLCM_sd15_t2v_lora.safetensors
-if [[ ! -e ${model_file} ]]; then
-    printf "Downloading AnimateLCM_sd15_t2v_lora.safetensors...\n"
-    download ${model_url} ${model_file}
-fi
+# model_file=${loras_dir}/AnimateLCM_sd15_t2v_lora.safetensors
+# model_url=https://huggingface.co/wangfuyun/AnimateLCM/resolve/main/AnimateLCM_sd15_t2v_lora.safetensors
+# if [[ ! -e ${model_file} ]]; then
+#     printf "Downloading AnimateLCM_sd15_t2v_lora.safetensors...\n"
+#     download ${model_url} ${model_file}
+# fi
 
-model_file=${checkpoints_dir}/dreamshaper_8.safetensors
-model_url=https://huggingface.co/autismanon/modeldump/resolve/main/dreamshaper_8.safetensors
-if [[ ! -e ${model_file} ]]; then
-    printf "Downloading dreamshaper_8.safetensors...\n"
-    download ${model_url} ${model_file}
-fi
+# model_file=${checkpoints_dir}/dreamshaper_8.safetensors
+# model_url=https://huggingface.co/autismanon/modeldump/resolve/main/dreamshaper_8.safetensors
+# if [[ ! -e ${model_file} ]]; then
+#     printf "Downloading dreamshaper_8.safetensors...\n"
+#     download ${model_url} ${model_file}
+# fi
 
 model_file=${vae_dir}/vae-ft-mse-840000-ema-pruned.safetensors
 model_url=https://huggingface.co/stabilityai/sd-vae-ft-mse-original/resolve/main/vae-ft-mse-840000-ema-pruned.safetensors
@@ -242,25 +258,34 @@ if [[ -z $CLOUDFLARE_DEMO_KEY ]]; then
     exit 1
 fi
 
-cat << EOF > /etc/supervisor/conf.d/supervisord.conf
+cat << EOF > $REMOTE_DIR/supervisord.conf
+[supervisord]
+user=ubuntu
+nodaemon=true
+logfile=$REMOTE_DIR/supervisord.log
+
 [program:comfyui]
-command=/bin/bash -c "cd /workspace/ComfyUI && python main.py --enable-cors-header http://localhost:3000"
+user=ubuntu
+chown=ubuntu:ubuntu
+command=/bin/bash -c "cd $REMOTE_DIR && python main.py --enable-cors-header http://localhost:3000 --port=8788"
 autostart=true
 autorestart=true
-stderr_logfile=/var/log/comfyui.err.log
-stdout_logfile=/var/log/comfyui.out.log
+stderr_logfile=$REMOTE_DIR/comfyui.err.log
+stdout_logfile=$REMOTE_DIR/comfyui.out.log
 
 [program:cloudflared]
-command=/usr/local/bin/cloudflared tunnel run --url http://localhost:8188 --token $CLOUDFLARE_DEMO_KEY
+user=ubuntu
+chown=ubuntu:ubuntu
+command=/usr/local/bin/cloudflared tunnel run --url http://localhost:8788 --token $CLOUDFLARE_DEMO_KEY
 autostart=true
 autorestart=true
-stderr_logfile=/var/log/cloudflared.err.log
-stdout_logfile=/var/log/cloudflared.out.log
+stderr_logfile=$REMOTE_DIR/cloudflared.err.log
+stdout_logfile=$REMOTE_DIR/cloudflared.out.log
 EOF
 
-supervisord -c /etc/supervisor/supervisord.conf
-supervisorctl update
-supervisorctl start all
+supervisord -c $REMOTE_DIR/supervisord.conf
+supervisorctl -c $REMOTE_DIR/supervisord.conf update
+supervisorctl -c $REMOTE_DIR/supervisord.conf start all
 
 echo "*********************"
 echo "Provisioning complete"

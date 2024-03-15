@@ -785,7 +785,6 @@ class TemporalTransformerBlock(nn.Module):
         scale_mask: Tensor=None,
         view_options: ContextOptions=None,
     ):
-        print(f"Attenion mask: {attention_mask}")
         # make view_options None if context_length > video_length, or if equal and equal not allowed
         if view_options:
             if view_options.context_length > video_length:
