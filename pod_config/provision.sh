@@ -264,6 +264,15 @@ user=ubuntu
 nodaemon=true
 logfile=$REMOTE_DIR/supervisord.log
 
+[unix_http_server]
+file=$REMOTE_DIR/supervisord.sock
+
+[supervisorctl]
+serverurl=unix://$REMOTE_DIR/supervisord.sock
+
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
 [program:comfyui]
 user=ubuntu
 chown=ubuntu:ubuntu

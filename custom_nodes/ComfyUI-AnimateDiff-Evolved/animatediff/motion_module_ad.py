@@ -540,6 +540,7 @@ class VanillaTemporalModule(nn.Module):
         return self.temp_effect_mask[full_batched_idxs]
 
     def forward(self, input_tensor: Tensor, encoder_hidden_states=None, attention_mask=None):
+        print("input_tensor", input_tensor.shape)
         if self.effect is None:
             return self.temporal_transformer(input_tensor, encoder_hidden_states, attention_mask, self.view_options)
         # return weighted average of input_tensor and AD output
