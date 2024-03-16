@@ -186,12 +186,12 @@ fi
 #     download ${model_url} ${model_file}
 # fi
 
-# model_file=${checkpoints_dir}/dreamshaper_8.safetensors
-# model_url=https://huggingface.co/autismanon/modeldump/resolve/main/dreamshaper_8.safetensors
-# if [[ ! -e ${model_file} ]]; then
-#     printf "Downloading dreamshaper_8.safetensors...\n"
-#     download ${model_url} ${model_file}
-# fi
+model_file=${checkpoints_dir}/dreamshaper_8.safetensors
+model_url=https://huggingface.co/autismanon/modeldump/resolve/main/dreamshaper_8.safetensors
+if [[ ! -e ${model_file} ]]; then
+    printf "Downloading dreamshaper_8.safetensors...\n"
+    download ${model_url} ${model_file}
+fi
 
 model_file=${vae_dir}/vae-ft-mse-840000-ema-pruned.safetensors
 model_url=https://huggingface.co/stabilityai/sd-vae-ft-mse-original/resolve/main/vae-ft-mse-840000-ema-pruned.safetensors

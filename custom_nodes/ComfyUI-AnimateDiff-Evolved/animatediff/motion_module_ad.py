@@ -547,21 +547,21 @@ class VanillaTemporalModule(nn.Module):
         return self.temp_effect_mask[full_batched_idxs]
 
     def intercept_forward(self, input_tensor: Tensor, encoder_hidden_states=None, attention_mask=None, view_options: ContextOptions = None):
-        print("input_tensor", input_tensor.shape)
-        print(f"0.mean: {input_tensor[0].mean().item()} 0.std: {input_tensor[0].std().item()}")
-        print(f"1.mean: {input_tensor[1].mean().item()} 1.std: {input_tensor[1].std().item()}")
+        # print("input_tensor", input_tensor.shape)
+        # print(f"0.mean: {input_tensor[0].mean().item()} 0.std: {input_tensor[0].std().item()}")
+        # print(f"1.mean: {input_tensor[1].mean().item()} 1.std: {input_tensor[1].std().item()}")
 
         # Stack the input tensor with the last video_length frames
         stacked_input = self.memory.push(sample_step.get(), input_tensor)
-        print("stacked_input", stacked_input.shape)
+        # print("stacked_input", stacked_input.shape)
 
         assert(self.video_length == 16)
         assert(stacked_input.shape[0] == 32)
 
         output = self.temporal_transformer(stacked_input, encoder_hidden_states, attention_mask, view_options)
-        print("output before", output.shape)
+        # print("output before", output.shape)
         output = output[-input_tensor.size(0):]
-        print("output after", output.shape)
+        # print("output after", output.shape)
         return output
 
     def forward(self, input_tensor: Tensor, encoder_hidden_states=None, attention_mask=None):
@@ -587,7 +587,7 @@ class InputMemoryRouter():
         self.video_length = video_length
         self.memory = dict[int, InputMemory]()
     def push(self, timestep: int, input_tensor: Tensor):
-        print(f"iteration: {timestep}, input_tensor: {input_tensor.shape}")
+        # print(f"iteration: {timestep}, input_tensor: {input_tensor.shape}")
         if timestep not in self.memory:
             self.memory[timestep] = InputMemory(self.video_length)
         return self.memory[timestep].push(input_tensor)
@@ -602,7 +602,7 @@ class InputMemory():
         self.run = 0
 
     def push(self, input_tensor: Tensor):
-        print(f"run: {self.run}")
+        # print(f"run: {self.run}")
         self.run += 1
 
         if self.memory is None:

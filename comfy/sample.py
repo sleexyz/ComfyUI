@@ -6,14 +6,17 @@ import comfy.utils
 import math
 import numpy as np
 
-def prepare_noise(latent_image, seed, noise_inds=None):
+def prepare_noise(latent_image, seed, noise_inds=None, override_size=None):
     """
     creates random noise given a latent image and a seed.
     optional arg skip can be used to skip and discard x number of noise generations for a given seed
     """
     generator = torch.manual_seed(seed)
     if noise_inds is None:
-        return torch.randn(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, generator=generator, device="cpu")
+        size = latent_image.size()
+        if override_size is not None:
+            size = override_size
+        return torch.randn(size, dtype=latent_image.dtype, layout=latent_image.layout, generator=generator, device="cpu")
     
     unique_inds, inverse = np.unique(noise_inds, return_inverse=True)
     noises = []

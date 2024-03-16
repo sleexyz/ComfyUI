@@ -10,33 +10,37 @@ from server import PromptServer
 from pydantic import BaseModel as PydanticBaseModel
 
 print_model = False
-force_causal = True
+force_causal = False
 
 
 class SampleStep:
     def __init__(self):
-        self.step = 0
-        self.cycles = 0
+        self.timestep = 0 # diffusion timesteps
+        self.frames = 0 # frames generated
         self.last_seed = None
+        self.noise = None
 
     def get(self):
-        return self.step
+        return self.timestep
 
     def is_first_run(self, seed: int):
         if self.last_seed != seed:
             self.last_seed = seed
-            self.cycles = 0
-            self.step = 0
+            self.frames = 0
+            self.timestep = 0
             return True
-        return self.cycles == 0
+        return self.frames == 0
 
     def increment(self):
-        self.step += 1
+        self.timestep += 1
 
     def reset(self):
-        print(f"Resetting step, cycles: {self.cycles}")
-        self.cycles += 1
-        self.step = 0
+        print(f"Resetting timestep, frames: {self.frames}")
+        if self.frames == 0:
+            self.frames += 16 # we generated 16 frames
+        else:
+            self.frames += 1 # we generated 1 frames
+        self.timestep = 0
 
 
 sample_step = SampleStep()

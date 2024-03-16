@@ -1324,13 +1324,26 @@ class SetLatentNoiseMask:
 
 def common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=1.0, disable_noise=False, start_step=None, last_step=None, force_full_denoise=False):
     latent_image = latent["samples"]
+
     if sample_step.is_first_run(seed):
+        override_size = 256
+        sample_step.noise = comfy.sample.prepare_noise(latent_image, seed, override_size=override_size)
+        frame_start = 0
+        frame_end = 16
         latent_image = latent_image.repeat(16, 1, 1, 1)
-    if disable_noise:
-        noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")
     else:
-        batch_inds = latent["batch_index"] if "batch_index" in latent else None
-        noise = comfy.sample.prepare_noise(latent_image, seed, batch_inds)
+        frame_start = sample_step.frames
+        frame_end = frame_start + 1
+
+    print(f"frame_start: {frame_start}, frame_end: {frame_end}")
+    noise = sample_step.noise[frame_start:frame_end]
+    sample_step.reset()
+
+    # if disable_noise:
+    #     noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")
+    # else:
+    #     batch_inds = latent["batch_index"] if "batch_index" in latent else None
+    #     noise = comfy.sample.prepare_noise(latent_image, seed, batch_inds)
 
     noise_mask = None
     if "noise_mask" in latent:

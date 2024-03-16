@@ -133,14 +133,13 @@ def sample_euler(model, x, sigmas, extra_args=None, callback=None, disable=None,
     """Implements Algorithm 2 (Euler steps) from Karras et al. (2022)."""
     extra_args = {} if extra_args is None else extra_args
     s_in = x.new_ones([x.shape[0]])
-    sample_step.reset()
     for i in trange(len(sigmas) - 1, disable=disable):
         gamma = min(s_churn / (len(sigmas) - 1), 2 ** 0.5 - 1) if s_tmin <= sigmas[i] <= s_tmax else 0.
         sigma_hat = sigmas[i] * (gamma + 1)
         if gamma > 0:
             eps = torch.randn_like(x) * s_noise
             x = x + eps * (sigma_hat ** 2 - sigmas[i] ** 2) ** 0.5
-        print(f"i: {i}, sigma: {sigmas[i]}, sigma_hat: {sigma_hat}, x.shape: {x.shape}")
+        # print(f"i: {i}, sigma: {sigmas[i]}, sigma_hat: {sigma_hat}, x.shape: {x.shape}")
 
         if i == 0 and print_model:
             draw_graph(
