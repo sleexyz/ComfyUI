@@ -11,6 +11,9 @@ from pydantic import BaseModel as PydanticBaseModel
 
 print_model = False
 force_causal = False
+debug_options: dict[str, Any] = {}
+
+debug_options["print_motion_module"] = True
 
 
 class SampleStep:
@@ -20,8 +23,11 @@ class SampleStep:
         self.last_seed = None
         self.noise = None
 
-    def get(self):
+    def get_timestep(self):
         return self.timestep
+
+    def get_frame(self):
+        return self.frames
 
     def is_first_run(self, seed: int):
         if self.last_seed != seed:

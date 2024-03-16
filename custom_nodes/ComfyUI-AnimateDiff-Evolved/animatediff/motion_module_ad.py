@@ -20,7 +20,9 @@ from .utils_motion import CrossAttentionMM, MotionCompatibilityError, extend_to_
 from .utils_model import BetaSchedules, ModelTypeSD
 from .logger import logger
 
-from globals import sample_step
+from globals import sample_step,debug_options
+from torchview import draw_graph
+
 
 def zero_module(module):
     # Zero out the parameters of a module and return it.
@@ -558,6 +560,19 @@ class VanillaTemporalModule(nn.Module):
         assert(self.video_length == 16)
         assert(stacked_input.shape[0] == 32)
 
+        if debug_options["print_motion_module"]:
+            draw_graph(
+                self.temporal_transformer,
+                input_data=(
+                    stacked_input,
+                    encoder_hidden_states,
+                    attention_mask,
+                    view_options
+                ),
+                graph_name="motion_module",
+                expand_nested=True,
+                save_graph=True,
+            )
         output = self.temporal_transformer(stacked_input, encoder_hidden_states, attention_mask, view_options)
         # print("output before", output.shape)
         output = output[-input_tensor.size(0):]
@@ -566,6 +581,7 @@ class VanillaTemporalModule(nn.Module):
 
     def forward(self, input_tensor: Tensor, encoder_hidden_states=None, attention_mask=None):
         # return input_tensor
+
         if self.effect is None:
             return self.intercept_forward(input_tensor, encoder_hidden_states, attention_mask, self.view_options)
         # return weighted average of input_tensor and AD output
