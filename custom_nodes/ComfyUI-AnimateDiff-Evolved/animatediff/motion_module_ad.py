@@ -20,6 +20,7 @@ from .utils_motion import CrossAttentionMM, MotionCompatibilityError, extend_to_
 from .utils_model import BetaSchedules, ModelTypeSD
 from .logger import logger
 
+from globals import sample_step
 
 def zero_module(module):
     # Zero out the parameters of a module and return it.
@@ -390,6 +391,7 @@ class MotionModule(nn.Module):
             block_type: str=BlockType.DOWN,
             ops=comfy.ops.disable_weight_init
         ):
+        print(f"in_channels: {in_channels}")
         super().__init__()
         if block_type == BlockType.MID:
             # mid blocks contain only a single VanillaTemporalModule
@@ -478,12 +480,17 @@ class VanillaTemporalModule(nn.Module):
             ops=ops
         )
 
+        self.memory = InputMemoryRouter(self.video_length)
+
         if zero_initialize:
             self.temporal_transformer.proj_out = zero_module(
                 self.temporal_transformer.proj_out
             )
 
     def set_video_length(self, video_length: int, full_length: int):
+        video_length = 16
+        full_length = 16
+        print(f"setting video length to {video_length} and full length to {full_length}")
         self.video_length = video_length
         self.full_length = full_length
         self.temporal_transformer.set_video_length(video_length, full_length)
@@ -539,10 +546,28 @@ class VanillaTemporalModule(nn.Module):
             return self.temp_effect_mask[self.sub_idxs*batched_number]
         return self.temp_effect_mask[full_batched_idxs]
 
-    def forward(self, input_tensor: Tensor, encoder_hidden_states=None, attention_mask=None):
+    def intercept_forward(self, input_tensor: Tensor, encoder_hidden_states=None, attention_mask=None, view_options: ContextOptions = None):
         print("input_tensor", input_tensor.shape)
+        print(f"0.mean: {input_tensor[0].mean().item()} 0.std: {input_tensor[0].std().item()}")
+        print(f"1.mean: {input_tensor[1].mean().item()} 1.std: {input_tensor[1].std().item()}")
+
+        # Stack the input tensor with the last video_length frames
+        stacked_input = self.memory.push(sample_step.get(), input_tensor)
+        print("stacked_input", stacked_input.shape)
+
+        assert(self.video_length == 16)
+        assert(stacked_input.shape[0] == 32)
+
+        output = self.temporal_transformer(stacked_input, encoder_hidden_states, attention_mask, view_options)
+        print("output before", output.shape)
+        output = output[-input_tensor.size(0):]
+        print("output after", output.shape)
+        return output
+
+    def forward(self, input_tensor: Tensor, encoder_hidden_states=None, attention_mask=None):
+        # return input_tensor
         if self.effect is None:
-            return self.temporal_transformer(input_tensor, encoder_hidden_states, attention_mask, self.view_options)
+            return self.intercept_forward(input_tensor, encoder_hidden_states, attention_mask, self.view_options)
         # return weighted average of input_tensor and AD output
         if type(self.effect) != Tensor:
             effect = self.effect
@@ -551,8 +576,44 @@ class VanillaTemporalModule(nn.Module):
                 return input_tensor
         else:
             effect = self.get_effect_mask(input_tensor)
-        return input_tensor*(1.0-effect) + self.temporal_transformer(input_tensor, encoder_hidden_states, attention_mask, self.view_options)*effect
 
+
+        ret = input_tensor*(1.0-effect) + self.intercept_forward(input_tensor, encoder_hidden_states, attention_mask, self.view_options)*effect
+        return ret
+
+
+class InputMemoryRouter():
+    def __init__(self, video_length: int):
+        self.video_length = video_length
+        self.memory = dict[int, InputMemory]()
+    def push(self, timestep: int, input_tensor: Tensor):
+        print(f"iteration: {timestep}, input_tensor: {input_tensor.shape}")
+        if timestep not in self.memory:
+            self.memory[timestep] = InputMemory(self.video_length)
+        return self.memory[timestep].push(input_tensor)
+    
+
+class InputMemory():
+    def __init__(self, video_length: int):
+        super().__init__()
+        self.memory = None
+        self.video_length = video_length
+        self.channels = 2 # Is this the best name?
+        self.run = 0
+
+    def push(self, input_tensor: Tensor):
+        print(f"run: {self.run}")
+        self.run += 1
+
+        if self.memory is None:
+            # self.memory = input_tensor.repeat(self.video_length, 1, 1, 1)
+            assert(input_tensor.size(0) == self.video_length * self.channels)
+            self.memory = input_tensor
+            return self.memory
+        else:
+            self.memory = torch.cat([self.memory, input_tensor], dim=0)
+        self.memory = self.memory[-(self.video_length * self.channels):]
+        return self.memory
 
 class TemporalTransformer3DModel(nn.Module):
     def __init__(

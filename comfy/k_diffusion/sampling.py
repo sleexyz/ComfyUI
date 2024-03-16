@@ -5,6 +5,11 @@ import torch
 from torch import nn
 import torchsde
 from tqdm.auto import trange, tqdm
+# from torch.utils.tensorboard import SummaryWriter
+# writer = SummaryWriter()
+
+from torchview import draw_graph
+from globals import print_model, sample_step
 
 from . import utils
 
@@ -128,12 +133,27 @@ def sample_euler(model, x, sigmas, extra_args=None, callback=None, disable=None,
     """Implements Algorithm 2 (Euler steps) from Karras et al. (2022)."""
     extra_args = {} if extra_args is None else extra_args
     s_in = x.new_ones([x.shape[0]])
+    sample_step.reset()
     for i in trange(len(sigmas) - 1, disable=disable):
         gamma = min(s_churn / (len(sigmas) - 1), 2 ** 0.5 - 1) if s_tmin <= sigmas[i] <= s_tmax else 0.
         sigma_hat = sigmas[i] * (gamma + 1)
         if gamma > 0:
             eps = torch.randn_like(x) * s_noise
             x = x + eps * (sigma_hat ** 2 - sigmas[i] ** 2) ** 0.5
+        print(f"i: {i}, sigma: {sigmas[i]}, sigma_hat: {sigma_hat}, x.shape: {x.shape}")
+
+        if i == 0 and print_model:
+            draw_graph(
+                model,
+                input_data=(
+                    x,
+                    sigma_hat * s_in,
+                ),
+                expand_nested=True,
+                save_graph=True,
+                **extra_args,
+            )
+
         denoised = model(x, sigma_hat * s_in, **extra_args)
         d = to_d(x, sigma_hat, denoised)
         if callback is not None:
@@ -141,6 +161,8 @@ def sample_euler(model, x, sigmas, extra_args=None, callback=None, disable=None,
         dt = sigmas[i + 1] - sigma_hat
         # Euler method
         x = x + d * dt
+        sample_step.increment()
+    
     return x
 
 
@@ -499,6 +521,8 @@ def sample_dpmpp_2s_ancestral(model, x, sigmas, extra_args=None, callback=None, 
     sigma_fn = lambda t: t.neg().exp()
     t_fn = lambda sigma: sigma.log().neg()
 
+
+
     for i in trange(len(sigmas) - 1, disable=disable):
         denoised = model(x, sigmas[i] * s_in, **extra_args)
         sigma_down, sigma_up = get_ancestral_step(sigmas[i], sigmas[i + 1], eta=eta)
@@ -750,7 +774,6 @@ def sample_lcm(model, x, sigmas, extra_args=None, callback=None, disable=None, n
         if sigmas[i + 1] > 0:
             x += sigmas[i + 1] * noise_sampler(sigmas[i], sigmas[i + 1])
     return x
-
 
 
 @torch.no_grad()

@@ -9,12 +9,43 @@ from server import PromptServer
 
 from pydantic import BaseModel as PydanticBaseModel
 
-
+print_model = False
 force_causal = True
+
+
+class SampleStep:
+    def __init__(self):
+        self.step = 0
+        self.cycles = 0
+        self.last_seed = None
+
+    def get(self):
+        return self.step
+
+    def is_first_run(self, seed: int):
+        if self.last_seed != seed:
+            self.last_seed = seed
+            self.cycles = 0
+            self.step = 0
+            return True
+        return self.cycles == 0
+
+    def increment(self):
+        self.step += 1
+
+    def reset(self):
+        print(f"Resetting step, cycles: {self.cycles}")
+        self.cycles += 1
+        self.step = 0
+
+
+sample_step = SampleStep()
+
 
 class BaseModel(PydanticBaseModel):
     class Config:
         arbitrary_types_allowed = True
+
 
 class StreamingPrompt(BaseModel):
     workflow_api: Any
@@ -24,26 +55,30 @@ class StreamingPrompt(BaseModel):
     status_endpoint: str
     file_upload_endpoint: str
 
+
 streaming_prompt_metadata: dict[str, StreamingPrompt] = {}
+
 
 class BinaryEventTypes:
     PREVIEW_IMAGE = 1
     UNENCODED_PREVIEW_IMAGE = 2
-    
+
+
 max_output_id_length = 24
 
-async def send_image(image_data, sid=None, output_id:str = None):
+
+async def send_image(image_data, sid=None, output_id: str = None):
     max_length = max_output_id_length
     output_id = output_id[:max_length]
-    padded_output_id = output_id.ljust(max_length, '\x00')
-    encoded_output_id = padded_output_id.encode('ascii', 'replace')
-    
+    padded_output_id = output_id.ljust(max_length, "\x00")
+    encoded_output_id = padded_output_id.encode("ascii", "replace")
+
     image_type = image_data[0]
     image = image_data[1]
     max_size = image_data[2]
     quality = image_data[3]
     if max_size is not None:
-        if hasattr(Image, 'Resampling'):
+        if hasattr(Image, "Resampling"):
             resampling = Image.Resampling.BILINEAR
         else:
             resampling = Image.ANTIALIAS
@@ -67,16 +102,22 @@ async def send_image(image_data, sid=None, output_id:str = None):
     position_after = bytesIO.tell()
     bytes_written = position_after - position_before
     print(f"Bytes written: {bytes_written}")
-    
+
     image.save(bytesIO, format=image_type, quality=quality, compress_level=1)
     preview_bytes = bytesIO.getvalue()
     await send_bytes(BinaryEventTypes.PREVIEW_IMAGE, preview_bytes, sid=sid)
-        
+
+
 async def send_socket_catch_exception(function, message):
     try:
         await function(message)
-    except (aiohttp.ClientError, aiohttp.ClientPayloadError, ConnectionResetError) as err:
+    except (
+        aiohttp.ClientError,
+        aiohttp.ClientPayloadError,
+        ConnectionResetError,
+    ) as err:
         print("send error:", err)
+
 
 def encode_bytes(event, data):
     if not isinstance(event, int):
@@ -87,16 +128,17 @@ def encode_bytes(event, data):
     message.extend(data)
     return message
 
+
 async def send_bytes(event, data, sid=None):
     message = encode_bytes(event, data)
-    
+
     print("sending image to ", event, sid)
 
     sockets = PromptServer.instance.sockets
     print(f"Sockets, {sockets.keys()}")
     # TODO: see why sids don't match up
     if sid is None:
-    # if True:
+        # if True:
         _sockets = list(sockets.values())
         for ws in _sockets:
             await send_socket_catch_exception(ws.send_bytes, message)

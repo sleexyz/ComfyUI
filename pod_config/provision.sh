@@ -32,7 +32,7 @@ function download() {
 
 ### Load development dependencies
 sudo apt-get update
-sudo apt-get -y install rsync supervisor
+sudo apt-get -y install rsync supervisor graphviz
 
 # Install comfyui
 git clone http://github.com/sleexyz/ComfyUI $REMOTE_DIR
@@ -258,11 +258,13 @@ if [[ -z $CLOUDFLARE_DEMO_KEY ]]; then
     exit 1
 fi
 
+mkdir -p $REMOTE_DIR/logs
+
 cat << EOF > $REMOTE_DIR/supervisord.conf
 [supervisord]
 user=ubuntu
 nodaemon=true
-logfile=$REMOTE_DIR/supervisord.log
+logfile=$REMOTE_DIR/logs/supervisord.log
 
 [unix_http_server]
 file=$REMOTE_DIR/supervisord.sock
@@ -279,17 +281,36 @@ chown=ubuntu:ubuntu
 command=/bin/bash -c "cd $REMOTE_DIR && python main.py --enable-cors-header http://localhost:3000 --port=8788"
 autostart=true
 autorestart=true
-stderr_logfile=$REMOTE_DIR/comfyui.err.log
-stdout_logfile=$REMOTE_DIR/comfyui.out.log
+stderr_logfile=$REMOTE_DIR/logs/comfyui.err.log
+stdout_logfile=$REMOTE_DIR/logs/comfyui.out.log
 
-[program:cloudflared]
+[program:cloudflared_comfy]
 user=ubuntu
 chown=ubuntu:ubuntu
 command=/usr/local/bin/cloudflared tunnel run --url http://localhost:8788 --token $CLOUDFLARE_DEMO_KEY
 autostart=true
 autorestart=true
-stderr_logfile=$REMOTE_DIR/cloudflared.err.log
-stdout_logfile=$REMOTE_DIR/cloudflared.out.log
+stderr_logfile=$REMOTE_DIR/logs/cloudflared_comfy.err.log
+stdout_logfile=$REMOTE_DIR/logs/cloudflared_comfy.out.log
+
+[program:tensorboard]
+user:ubuntu
+chown=ubuntu:ubuntu
+command=/bin/bash -c "cd $REMOTE_DIR && tensorboard --logdir=runs --port=6006"
+autostart=true
+autorestart=true
+stderr_logfile=$REMOTE_DIR/logs/tensorboard.err.log
+stdout_logfile=$REMOTE_DIR/logs/tensorboard.out.log
+
+[program:cloudflared_tensorboard]
+user=ubuntu
+chown=ubuntu:ubuntu
+command=/usr/local/bin/cloudflared tunnel run --url http://localhost:6006 --token $CLOUDFLARE_DEMO_KEY
+autostart=true
+autorestart=true
+stderr_logfile=$REMOTE_DIR/logs/cloudflared_tensorboard.err.log
+stdout_logfile=$REMOTE_DIR/logs/cloudflared_tensorboard.out.log
+
 EOF
 
 supervisord -c $REMOTE_DIR/supervisord.conf

@@ -8,6 +8,7 @@ import traceback
 import math
 import time
 import random
+from globals import sample_step
 
 from PIL import Image, ImageOps, ImageSequence
 from PIL.PngImagePlugin import PngInfo
@@ -1323,6 +1324,8 @@ class SetLatentNoiseMask:
 
 def common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=1.0, disable_noise=False, start_step=None, last_step=None, force_full_denoise=False):
     latent_image = latent["samples"]
+    if sample_step.is_first_run(seed):
+        latent_image = latent_image.repeat(16, 1, 1, 1)
     if disable_noise:
         noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")
     else:
@@ -1363,6 +1366,11 @@ class KSampler:
     FUNCTION = "sample"
 
     CATEGORY = "sampling"
+
+
+    @classmethod
+    def IS_CHANGED(s):
+        return True
 
     def sample(self, model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent_image, denoise=1.0):
         return common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent_image, denoise=denoise)
