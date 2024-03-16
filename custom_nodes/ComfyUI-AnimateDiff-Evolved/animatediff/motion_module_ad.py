@@ -554,7 +554,7 @@ class VanillaTemporalModule(nn.Module):
         # print(f"1.mean: {input_tensor[1].mean().item()} 1.std: {input_tensor[1].std().item()}")
 
         # Stack the input tensor with the last video_length frames
-        stacked_input = self.memory.push(sample_step.get(), input_tensor)
+        stacked_input = self.memory.push(sample_step.get_timestep(), input_tensor)
         # print("stacked_input", stacked_input.shape)
 
         assert(self.video_length == 16)

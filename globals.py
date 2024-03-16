@@ -9,11 +9,11 @@ from server import PromptServer
 
 from pydantic import BaseModel as PydanticBaseModel
 
-print_model = False
 force_causal = False
 debug_options: dict[str, Any] = {}
 
-debug_options["print_motion_module"] = True
+debug_options["print_motion_module"] = False
+debug_options["print_model"] = True
 
 
 class SampleStep:
