@@ -264,21 +264,7 @@ fi
 
 mkdir -p $REMOTE_ROOT/logs
 
-cat << EOF > $REMOTE_ROOT/supervisord.conf
-[supervisord]
-user=ubuntu
-nodaemon=true
-logfile=$REMOTE_ROOT/logs/supervisord.log
-
-[unix_http_server]
-file=$REMOTE_ROOT/supervisord.sock
-
-[supervisorctl]
-serverurl=unix://$REMOTE_ROOT/supervisord.sock
-
-[rpcinterface:supervisor]
-supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
-
+cat << EOF > $REMOTE_ROOT/supervisord-$WORKSPACE_NAME.fragment.conf
 [program:comfyui]
 user=ubuntu
 chown=ubuntu:ubuntu
@@ -316,9 +302,7 @@ stderr_logfile=$REMOTE_ROOT/logs/cloudflared_tensorboard.err.log
 stdout_logfile=$REMOTE_ROOT/logs/cloudflared_tensorboard.out.log
 EOF
 
-supervisord -c $REMOTE_ROOT/supervisord.conf
-supervisorctl -c $REMOTE_ROOT/supervisord.conf update
-supervisorctl -c $REMOTE_ROOT/supervisord.conf start all
-
 echo "*********************"
-echo "Provisioning complete"
+echo "Project provisioning complete"
+echo "*********************"
+

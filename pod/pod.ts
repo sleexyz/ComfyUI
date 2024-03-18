@@ -54,6 +54,7 @@ const operations: OperationDict = {
       }
       console.log("Provisioning the pod...");
       await spawn(`${ctx.sshCmd} -t "CLOUDFLARE_DEMO_KEY=${env.CLOUDFLARE_DEMO_KEY} REMOTE_DIR=${env.REMOTE_DIR} REMOTE_ROOT=${env.REMOTE_ROOT} bash -s" < pod_config/provision.sh`);
+      await spawn(`${ctx.sshCmd} -t "CLOUDFLARE_DEMO_KEY=${env.CLOUDFLARE_DEMO_KEY} REMOTE_DIR=${env.REMOTE_DIR} REMOTE_ROOT=${env.REMOTE_ROOT} bash -s" < pod/start_services.sh`);
     },
   },
   stop: {
