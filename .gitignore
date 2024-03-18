@@ -5,10 +5,8 @@ __pycache__/
 !/input/example.png
 /models/
 /temp/
-/custom_nodes/
-!/custom_nodes/ComfyUI-AnimateDiff-Evolved
-!custom_nodes/example_node.py.example
-!custom_nodes/output_websocket_image.py
+/custom_nodes/ComfyUI-Manager/
+/custom_nodes/ComfyUI-Impact-Pack/
 extra_model_paths.yaml
 /.vs
 .idea/

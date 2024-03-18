@@ -133,6 +133,7 @@ def sample_euler(model, x, sigmas, extra_args=None, callback=None, disable=None,
     """Implements Algorithm 2 (Euler steps) from Karras et al. (2022)."""
     extra_args = {} if extra_args is None else extra_args
     s_in = x.new_ones([x.shape[0]])
+    sample_step.reset()
     for i in trange(len(sigmas) - 1, disable=disable):
         gamma = min(s_churn / (len(sigmas) - 1), 2 ** 0.5 - 1) if s_tmin <= sigmas[i] <= s_tmax else 0.
         sigma_hat = sigmas[i] * (gamma + 1)
@@ -163,6 +164,7 @@ def sample_euler(model, x, sigmas, extra_args=None, callback=None, disable=None,
         x = x + d * dt
         sample_step.increment()
     
+    sample_step.increment_frames()
     return x
 
 

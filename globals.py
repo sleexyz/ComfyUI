@@ -12,11 +12,17 @@ from pydantic import BaseModel as PydanticBaseModel
 force_causal = False
 debug_options: dict[str, Any] = {}
 
+# Prints motion module graph via torchview
 debug_options["print_motion_module"] = False
+
+# Prints whole model via torchview
 debug_options["print_model"] = True
 
+# Offsets position encoding frames by frame step count
+debug_options["offset_positional_encoding"] = True
 
 class SampleStep:
+
     def __init__(self):
         self.timestep = 0 # diffusion timesteps
         self.frames = 0 # frames generated
@@ -42,11 +48,15 @@ class SampleStep:
 
     def reset(self):
         print(f"Resetting timestep, frames: {self.frames}")
+        self.timestep = 0
+
+    def increment_frames(self):
         if self.frames == 0:
             self.frames += 16 # we generated 16 frames
+            print(f"incrementing frames to: {self.frames}")
         else:
             self.frames += 1 # we generated 1 frames
-        self.timestep = 0
+            print(f"incrementing frames to: {self.frames}")
 
 
 sample_step = SampleStep()

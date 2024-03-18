@@ -1337,7 +1337,6 @@ def common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, 
 
     print(f"frame_start: {frame_start}, frame_end: {frame_end}")
     noise = sample_step.noise[frame_start:frame_end]
-    sample_step.reset()
 
     # if disable_noise:
     #     noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")

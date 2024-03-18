@@ -180,6 +180,7 @@ class AnimateDiffModel(nn.Module):
         self.up_blocks: Iterable[MotionModule] = nn.ModuleList([])
         self.mid_block: Union[MotionModule, None] = None
         self.encoding_max_len = get_position_encoding_max_len(mm_state_dict, mm_info.mm_name, mm_info.mm_format)
+        print(f"00000000000000000000000 -- encoding_max_len: {self.encoding_max_len}")
         self.has_position_encoding = self.encoding_max_len is not None
         # determine ops to use (to support fp8 properly)
         if comfy.model_management.unet_manual_cast(comfy.model_management.unet_dtype(), comfy.model_management.get_torch_device()) is None:
@@ -967,7 +968,18 @@ class PositionalEncoding(nn.Module):
         #if self.sub_idxs is not None:
         #    x = x + self.pe[:, self.sub_idxs]
         #else:
-        x = x + self.pe[:, : x.size(1)]
+        print(f"(positional_encoder): base frame #: {sample_step.get_frame()}, x.shape: {x.shape}, pe.shape: {self.pe.shape}")
+
+        if debug_options["offset_positional_encoding"]:
+            debug_offset = 0
+            start_index = max(sample_step.get_frame() - 16, 0) + debug_offset
+            end_index = start_index + 16
+            assert(end_index <= self.pe.size(1))
+            assert(start_index >= 0)
+            print(f"start_index: {start_index}, end_index: {end_index}")
+            x = x + self.pe[:, start_index:end_index]
+        else:
+            x = x + self.pe[:, start_index: x.size(1)]
         return self.dropout(x)
 
 
