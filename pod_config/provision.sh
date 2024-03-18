@@ -21,6 +21,10 @@ if [[ -z $REMOTE_DIR ]]; then
     exit 1
 fi
 
+if [[ -z $REMOTE_ROOT ]]; then
+    echo "REMOTE_ROOT is not set"
+    exit 1
+fi
 
 # This file will be sourced in init.sh
 
@@ -258,19 +262,19 @@ if [[ -z $CLOUDFLARE_DEMO_KEY ]]; then
     exit 1
 fi
 
-mkdir -p $REMOTE_DIR/logs
+mkdir -p $REMOTE_ROOT/logs
 
-cat << EOF > $REMOTE_DIR/supervisord.conf
+cat << EOF > $REMOTE_ROOT/supervisord.conf
 [supervisord]
 user=ubuntu
 nodaemon=true
-logfile=$REMOTE_DIR/logs/supervisord.log
+logfile=$REMOTE_ROOT/logs/supervisord.log
 
 [unix_http_server]
-file=$REMOTE_DIR/supervisord.sock
+file=$REMOTE_ROOT/supervisord.sock
 
 [supervisorctl]
-serverurl=unix://$REMOTE_DIR/supervisord.sock
+serverurl=unix://$REMOTE_ROOT/supervisord.sock
 
 [rpcinterface:supervisor]
 supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
@@ -281,8 +285,8 @@ chown=ubuntu:ubuntu
 command=/bin/bash -c "cd $REMOTE_DIR && python main.py --enable-cors-header http://localhost:3000 --port=8788"
 autostart=true
 autorestart=true
-stderr_logfile=$REMOTE_DIR/logs/comfyui.err.log
-stdout_logfile=$REMOTE_DIR/logs/comfyui.out.log
+stderr_logfile=$REMOTE_ROOT/logs/comfyui.err.log
+stdout_logfile=$REMOTE_ROOT/logs/comfyui.out.log
 
 [program:cloudflared_comfy]
 user=ubuntu
@@ -290,8 +294,8 @@ chown=ubuntu:ubuntu
 command=/usr/local/bin/cloudflared tunnel run --url http://localhost:8788 --token $CLOUDFLARE_DEMO_KEY
 autostart=true
 autorestart=true
-stderr_logfile=$REMOTE_DIR/logs/cloudflared_comfy.err.log
-stdout_logfile=$REMOTE_DIR/logs/cloudflared_comfy.out.log
+stderr_logfile=$REMOTE_ROOT/logs/cloudflared_comfy.err.log
+stdout_logfile=$REMOTE_ROOT/logs/cloudflared_comfy.out.log
 
 [program:tensorboard]
 user:ubuntu
@@ -299,8 +303,8 @@ chown=ubuntu:ubuntu
 command=/bin/bash -c "cd $REMOTE_DIR && tensorboard --logdir=runs --port=6006"
 autostart=true
 autorestart=true
-stderr_logfile=$REMOTE_DIR/logs/tensorboard.err.log
-stdout_logfile=$REMOTE_DIR/logs/tensorboard.out.log
+stderr_logfile=$REMOTE_ROOT/logs/tensorboard.err.log
+stdout_logfile=$REMOTE_ROOT/logs/tensorboard.out.log
 
 [program:cloudflared_tensorboard]
 user=ubuntu
@@ -308,14 +312,13 @@ chown=ubuntu:ubuntu
 command=/usr/local/bin/cloudflared tunnel run --url http://localhost:6006 --token $CLOUDFLARE_DEMO_KEY
 autostart=true
 autorestart=true
-stderr_logfile=$REMOTE_DIR/logs/cloudflared_tensorboard.err.log
-stdout_logfile=$REMOTE_DIR/logs/cloudflared_tensorboard.out.log
-
+stderr_logfile=$REMOTE_ROOT/logs/cloudflared_tensorboard.err.log
+stdout_logfile=$REMOTE_ROOT/logs/cloudflared_tensorboard.out.log
 EOF
 
-supervisord -c $REMOTE_DIR/supervisord.conf
-supervisorctl -c $REMOTE_DIR/supervisord.conf update
-supervisorctl -c $REMOTE_DIR/supervisord.conf start all
+supervisord -c $REMOTE_ROOT/supervisord.conf
+supervisorctl -c $REMOTE_ROOT/supervisord.conf update
+supervisorctl -c $REMOTE_ROOT/supervisord.conf start all
 
 echo "*********************"
 echo "Provisioning complete"

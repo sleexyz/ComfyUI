@@ -27,10 +27,19 @@ interface Operation {
   run: (ctx: RunPodContext, args: string[]) => Promise<void>;
 }
 
-if (!env.REMOTE_DIR) {
-  console.error("REMOTE_DIR is not set. Exiting.");
+if (!env.REMOTE_ROOT) {
+  console.error("REMOTE_ROOT is not set. Exiting.");
   process.exit(1);
 }
+if (env.REMOTE_DIR) {
+  console.error("REMOTE_DIR is deprecated. Use REMOTE_ROOT and WORKSPACE_NAME instead. Exiting.");
+  process.exit(1);
+}
+if (!env.WORKSPACE_NAME) {
+  console.error("WORKSPACE_NAME is not set. Exiting.");
+  process.exit(1);
+}
+env.REMOTE_DIR = `${env.REMOTE_ROOT}/${env.WORKSPACE_NAME}`;
 
 const operations: OperationDict = {
   start: {
@@ -44,7 +53,7 @@ const operations: OperationDict = {
         process.exit(1);
       }
       console.log("Provisioning the pod...");
-      await spawn(`${ctx.sshCmd} -t "CLOUDFLARE_DEMO_KEY=${env.CLOUDFLARE_DEMO_KEY} REMOTE_DIR=${env.REMOTE_DIR} bash -s" < pod_config/provision.sh`);
+      await spawn(`${ctx.sshCmd} -t "CLOUDFLARE_DEMO_KEY=${env.CLOUDFLARE_DEMO_KEY} REMOTE_DIR=${env.REMOTE_DIR} REMOTE_ROOT=${env.REMOTE_ROOT} bash -s" < pod_config/provision.sh`);
     },
   },
   stop: {
