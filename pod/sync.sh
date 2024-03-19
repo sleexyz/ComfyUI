@@ -1,7 +1,5 @@
 #!/bin/bash
 
-source $(dirname $0)/../pod_config/.pod.env
-
 if [[ -z $REMOTE_DIR ]]; then
     echo "REMOTE_DIR is not set"
     exit 1

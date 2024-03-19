@@ -25,6 +25,7 @@ if [[ -z $REMOTE_ROOT ]]; then
     exit 1
 fi
 
+mkdir -p $REMOTE_ROOT/logs
 
 cat <<EOF > $REMOTE_ROOT/supervisord.conf
 [supervisord]
@@ -64,4 +65,3 @@ echo "Services started"
 echo "*********************"
 
 supervisorctl -c $REMOTE_ROOT/supervisord.conf status
-

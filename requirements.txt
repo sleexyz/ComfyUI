@@ -16,3 +16,9 @@ pydantic
 tensorboard
 torchview
 graphviz
+
+
+notebook
+mediapy
+numpy
+

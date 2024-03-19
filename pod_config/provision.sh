@@ -21,6 +21,11 @@ if [[ -z $REMOTE_DIR ]]; then
     exit 1
 fi
 
+if [[ -z $WORKSPACE_NAME ]]; then
+    echo "WORKSPACE_NAME is not set"
+    exit 1
+fi
+
 if [[ -z $REMOTE_ROOT ]]; then
     echo "REMOTE_ROOT is not set"
     exit 1
@@ -36,7 +41,7 @@ function download() {
 
 ### Load development dependencies
 sudo apt-get update
-sudo apt-get -y install rsync supervisor graphviz
+sudo apt-get -y install rsync supervisor graphviz ffmpeg
 
 # Install comfyui
 git clone http://github.com/sleexyz/ComfyUI $REMOTE_DIR
@@ -44,7 +49,7 @@ git clone http://github.com/sleexyz/ComfyUI $REMOTE_DIR
 CONDA_BIN=$HOME/miniconda3/bin
 export PATH=$CONDA_BIN:$PATH
 
-if conda info --envs | grep -q inf; then 
+if conda info --envs | grep -q "$REMOTE_DIR"; then
     echo "base already exists"
 else 
     conda create -y -p $REMOTE_DIR/venv python=3.10
@@ -262,8 +267,6 @@ if [[ -z $CLOUDFLARE_DEMO_KEY ]]; then
     exit 1
 fi
 
-mkdir -p $REMOTE_ROOT/logs
-
 cat << EOF > $REMOTE_ROOT/supervisord-$WORKSPACE_NAME.fragment.conf
 [program:comfyui]
 user=ubuntu
@@ -300,6 +303,27 @@ autostart=true
 autorestart=true
 stderr_logfile=$REMOTE_ROOT/logs/cloudflared_tensorboard.err.log
 stdout_logfile=$REMOTE_ROOT/logs/cloudflared_tensorboard.out.log
+
+[program:comfy_jupyter]
+user=ubuntu
+chown=ubuntu:ubuntu
+command=/bin/bash -c "(source activate $REMOTE_DIR/venv; cd $REMOTE_DIR; kill \$(lsof -t -i:8876); JUPYTER_CONFIG_DIR=$REMOTE_DIR/jupyter jupyter notebook --ip 0.0.0.0 --no-browser --port 8876)"
+stopasgroup = true
+killasgroup = true
+autostart=true
+autorestart=true
+stderr_logfile=$REMOTE_ROOT/logs/comfy_jupyter.err.log
+stdout_logfile=$REMOTE_ROOT/logs/comfy_jupyter.out.log
+
+[program:cloudflared_comfy_jupyter]
+user=ubuntu
+chown=ubuntu:ubuntu
+command=/usr/local/bin/cloudflared tunnel run --url http://localhost:8876 --token $CLOUDFLARE_DEMO_KEY
+autostart=true
+autorestart=true
+stderr_logfile=$REMOTE_ROOT/logs/cloudflared_jupyter.err.log
+stdout_logfile=$REMOTE_ROOT/logs/cloudflared_jupyter.out.log
+
 EOF
 
 echo "*********************"

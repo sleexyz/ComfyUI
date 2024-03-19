@@ -53,7 +53,11 @@ const operations: OperationDict = {
         process.exit(1);
       }
       console.log("Provisioning the pod...");
-      await spawn(`${ctx.sshCmd} -t "CLOUDFLARE_DEMO_KEY=${env.CLOUDFLARE_DEMO_KEY} REMOTE_DIR=${env.REMOTE_DIR} REMOTE_ROOT=${env.REMOTE_ROOT} bash -s" < pod_config/provision.sh`);
+      const result = await spawn(`${ctx.sshCmd} -t "CLOUDFLARE_DEMO_KEY=${env.CLOUDFLARE_DEMO_KEY} REMOTE_DIR=${env.REMOTE_DIR} REMOTE_ROOT=${env.REMOTE_ROOT} WORKSPACE_NAME=${env.WORKSPACE_NAME} bash -s" < pod_config/provision.sh`);
+      if (result !== 0) {
+        console.error("Provisioning failed. Exiting.");
+        process.exit(1);
+      }
       await spawn(`${ctx.sshCmd} -t "CLOUDFLARE_DEMO_KEY=${env.CLOUDFLARE_DEMO_KEY} REMOTE_DIR=${env.REMOTE_DIR} REMOTE_ROOT=${env.REMOTE_ROOT} bash -s" < pod/start_services.sh`);
     },
   },
@@ -82,7 +86,16 @@ const operations: OperationDict = {
     usage: "pod dev [args]",
     requirePodStarted: true,
     run: async (ctx: RunPodContext, args: string[]) => {
-      await spawn(`SSH_CMD="${ctx.sshCmd}" pod/dev.sh ${args.join(" ")}`);
+      await spawn(`SSH_CMD="${ctx.sshCmd}" REMOTE_ROOT="${env.REMOTE_ROOT}" REMOTE_DIR="${env.REMOTE_DIR}" pod/dev.sh ${args.join(" ")}`);
+    },
+  },
+  sync: {
+    name: "sync",
+    description: "Syncs files to the pod.",
+    usage: "pod sync [args]",
+    requirePodStarted: true,
+    run: async (ctx: RunPodContext, args: string[]) => {
+      await spawn(`SSH_CMD="${ctx.sshCmd}" REMOTE_DIR="${env.REMOTE_DIR}" pod/sync.sh ${args.join(" ")}`);
     },
   },
   ranger: {
@@ -92,6 +105,15 @@ const operations: OperationDict = {
     requirePodStarted: true,
     run: async (ctx: RunPodContext, args: string[]) => {
       await spawn(`${ctx.sshCmd} -t "ranger ${env.REMOTE_DIR}"`);
+    },
+  },
+  supervisorctl: {
+    name: "supervisorctl",
+    description: "Open supervisor in the pod",
+    usage: "pod supervisorctl [args]",
+    requirePodStarted: true,
+    run: async (ctx: RunPodContext, args: string[]) => {
+      await spawn(`${ctx.sshCmd} -t "supervisorctl -c ${env.REMOTE_ROOT}/supervisord.conf ${args.join(" ")}"`);
     },
   },
   pull: {

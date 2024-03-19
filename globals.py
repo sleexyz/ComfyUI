@@ -19,7 +19,7 @@ debug_options["print_motion_module"] = False
 debug_options["print_model"] = True
 
 # Offsets position encoding frames by frame step count
-debug_options["offset_positional_encoding"] = True
+debug_options["offset_positional_encoding"] = False
 
 class SampleStep:
 
