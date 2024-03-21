@@ -9,58 +9,6 @@ from server import PromptServer
 
 from pydantic import BaseModel as PydanticBaseModel
 
-force_causal = False
-debug_options: dict[str, Any] = {}
-
-# Prints motion module graph via torchview
-debug_options["print_motion_module"] = False
-
-# Prints whole model via torchview
-debug_options["print_model"] = True
-
-# Offsets position encoding frames by frame step count
-debug_options["offset_positional_encoding"] = False
-
-class SampleStep:
-
-    def __init__(self):
-        self.timestep = 0 # diffusion timesteps
-        self.frames = 0 # frames generated
-        self.last_seed = None
-        self.noise = None
-
-    def get_timestep(self):
-        return self.timestep
-
-    def get_frame(self):
-        return self.frames
-
-    def is_first_run(self, seed: int):
-        if self.last_seed != seed:
-            self.last_seed = seed
-            self.frames = 0
-            self.timestep = 0
-            return True
-        return self.frames == 0
-
-    def increment(self):
-        self.timestep += 1
-
-    def reset(self):
-        print(f"Resetting timestep, frames: {self.frames}")
-        self.timestep = 0
-
-    def increment_frames(self):
-        if self.frames == 0:
-            self.frames += 16 # we generated 16 frames
-            print(f"incrementing frames to: {self.frames}")
-        else:
-            self.frames += 1 # we generated 1 frames
-            print(f"incrementing frames to: {self.frames}")
-
-
-sample_step = SampleStep()
-
 
 class BaseModel(PydanticBaseModel):
     class Config:

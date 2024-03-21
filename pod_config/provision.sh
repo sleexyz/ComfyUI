@@ -39,30 +39,48 @@ function download() {
 }
 
 
+# optionally use sudo if not running as root
+
+USER=$(whoami)
+SUDO=""
+if [ "$EUID" -ne 0 ]; then
+    SUDO="sudo"
+fi
+
+
+
 ### Load development dependencies
-sudo apt-get update
-sudo apt-get -y install rsync supervisor graphviz ffmpeg
+$SUDO apt-get update
+$SUDO apt-get -y install ranger screen rsync supervisor graphviz ffmpeg
+
+
 
 # Install comfyui
 git clone http://github.com/sleexyz/ComfyUI $REMOTE_DIR
 
 CONDA_BIN=$HOME/miniconda3/bin
 export PATH=$CONDA_BIN:$PATH
+CONDA=$CONDA_BIN/conda
 
-if conda info --envs | grep -q "$REMOTE_DIR"; then
+# (cd $REMOTE_DIR; curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba)
+# export MAMBA_ROOT_PREFIX=$REMOTE_DIR # optional, defaults to ~/micromamba
+# eval "$($REMOTE_DIR/bin/micromamba shell hook -s bash)"
+# CONDA=$REMOTE_DIR/bin/micromamba
+
+if $CONDA env list | grep -q "$REMOTE_DIR"; then
     echo "base already exists"
 else 
-    conda create -y -p $REMOTE_DIR/venv python=3.10
+    $CONDA create -y -p $REMOTE_DIR/venv python=3.10 -c conda-forge
 fi
-
-source activate $REMOTE_DIR/venv
+source $CONDA_BIN/activate $REMOTE_DIR/venv
 
 (cd $REMOTE_DIR; pip install -r requirements.txt)
+(cd $REMOTE_DIR; pip install --upgrade notebook)
 
 # install cloudflared
 if [[ ! -e /usr/local/bin/cloudflared ]]; then
     mkdir -p /tmp/cloudflared
-    (cd /tmp/cloudflared; wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb; sudo dpkg -i cloudflared-linux-amd64.deb)
+    (cd /tmp/cloudflared; wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb; $SUDO dpkg -i cloudflared-linux-amd64.deb)
 fi
 
 ## Set paths
@@ -216,6 +234,34 @@ if [[ ! -e ${model_file} ]]; then
     download ${model_url} ${model_file}
 fi
 
+MODEL_FILE=${animatediff_models_dir}/animatediff_lightning_1step_comfyui.safetensors
+MODEL_URL=https://huggingface.co/ByteDance/AnimateDiff-Lightning/resolve/main/animatediff_lightning_1step_comfyui.safetensors
+if [[ ! -e  $MODEL_FILE ]]; then
+    printf "animatediff_lightning_1step_comfyui.safetensors not found. Downloading..."
+    download $MODEL_URL $MODEL_FILE
+fi
+
+MODEL_FILE=${animatediff_models_dir}/animatediff_lightning_2step_comfyui.safetensors
+MODEL_URL=https://huggingface.co/ByteDance/AnimateDiff-Lightning/resolve/main/animatediff_lightning_2step_comfyui.safetensors
+if [[ ! -e  $MODEL_FILE ]]; then
+    printf "animatediff_lightning_2step_comfyui.safetensors not found. Downloading..."
+    download $MODEL_URL $MODEL_FILE
+fi
+
+MODEL_FILE=${animatediff_models_dir}/animatediff_lightning_4step_comfyui.safetensors
+MODEL_URL=https://huggingface.co/ByteDance/AnimateDiff-Lightning/resolve/main/animatediff_lightning_4step_comfyui.safetensors
+if [[ ! -e  $MODEL_FILE ]]; then
+    printf "animatediff_lightning_4step_comfyui.safetensors not found. Downloading..."
+    download $MODEL_URL $MODEL_FILE
+fi
+
+MODEL_FILE=${animatediff_models_dir}/animatediff_lightning_8step_comfyui.safetensors
+MODEL_URL=https://huggingface.co/ByteDance/AnimateDiff-Lightning/resolve/main/animatediff_lightning_8step_comfyui.safetensors
+if [[ ! -e  $MODEL_FILE ]]; then
+    printf "animatediff_lightning_8step_comfyui.safetensors not found. Downloading..."
+    download $MODEL_URL $MODEL_FILE
+fi
+
 
 if [[ $SDXL == "true" ]]; then
     model_file=${animatediff_models_dir}/mm_sdxl_v10_beta.ckpt
@@ -269,17 +315,17 @@ fi
 
 cat << EOF > $REMOTE_ROOT/supervisord-$WORKSPACE_NAME.fragment.conf
 [program:comfyui]
-user=ubuntu
-chown=ubuntu:ubuntu
-command=/bin/bash -c "cd $REMOTE_DIR && python main.py --enable-cors-header http://localhost:3000 --port=8788"
+user=$USER
+chown=$USER:$USER
+command=/bin/bash -c "(source $CONDA_BIN/activate $REMOTE_DIR/venv; kill \$(lsof -t -i:8788); cd $REMOTE_DIR; which python; python main.py --enable-cors-header http://localhost:3000 --port=8788)"
 autostart=true
 autorestart=true
 stderr_logfile=$REMOTE_ROOT/logs/comfyui.err.log
 stdout_logfile=$REMOTE_ROOT/logs/comfyui.out.log
 
 [program:cloudflared_comfy]
-user=ubuntu
-chown=ubuntu:ubuntu
+user=$USER
+chown=$USER:$USER
 command=/usr/local/bin/cloudflared tunnel run --url http://localhost:8788 --token $CLOUDFLARE_DEMO_KEY
 autostart=true
 autorestart=true
@@ -287,17 +333,17 @@ stderr_logfile=$REMOTE_ROOT/logs/cloudflared_comfy.err.log
 stdout_logfile=$REMOTE_ROOT/logs/cloudflared_comfy.out.log
 
 [program:tensorboard]
-user:ubuntu
-chown=ubuntu:ubuntu
-command=/bin/bash -c "cd $REMOTE_DIR && tensorboard --logdir=runs --port=6006"
+user=$USER
+chown=$USER:$USER
+command=/bin/bash -c "(source $CONDA_BIN/activate $REMOTE_DIR/venv; cd $REMOTE_DIR && tensorboard --logdir=runs --port=6006)"
 autostart=true
 autorestart=true
 stderr_logfile=$REMOTE_ROOT/logs/tensorboard.err.log
 stdout_logfile=$REMOTE_ROOT/logs/tensorboard.out.log
 
 [program:cloudflared_tensorboard]
-user=ubuntu
-chown=ubuntu:ubuntu
+user=$USER
+chown=$USER:$USER
 command=/usr/local/bin/cloudflared tunnel run --url http://localhost:6006 --token $CLOUDFLARE_DEMO_KEY
 autostart=true
 autorestart=true
@@ -305,9 +351,9 @@ stderr_logfile=$REMOTE_ROOT/logs/cloudflared_tensorboard.err.log
 stdout_logfile=$REMOTE_ROOT/logs/cloudflared_tensorboard.out.log
 
 [program:comfy_jupyter]
-user=ubuntu
-chown=ubuntu:ubuntu
-command=/bin/bash -c "(source activate $REMOTE_DIR/venv; cd $REMOTE_DIR; kill \$(lsof -t -i:8876); JUPYTER_CONFIG_DIR=$REMOTE_DIR/jupyter jupyter notebook --ip 0.0.0.0 --no-browser --port 8876)"
+user=$USER
+chown=$USER:$USER
+command=/bin/bash -c "(source $CONDA_BIN/activate $REMOTE_DIR/venv; cd $REMOTE_DIR; kill \$(lsof -t -i:8876); JUPYTER_CONFIG_DIR=$REMOTE_DIR/jupyter jupyter notebook --ip 0.0.0.0 --no-browser --port 8876 --allow-root)"
 stopasgroup = true
 killasgroup = true
 autostart=true
@@ -316,8 +362,8 @@ stderr_logfile=$REMOTE_ROOT/logs/comfy_jupyter.err.log
 stdout_logfile=$REMOTE_ROOT/logs/comfy_jupyter.out.log
 
 [program:cloudflared_comfy_jupyter]
-user=ubuntu
-chown=ubuntu:ubuntu
+user=$USER
+chown=$USER:$USER
 command=/usr/local/bin/cloudflared tunnel run --url http://localhost:8876 --token $CLOUDFLARE_DEMO_KEY
 autostart=true
 autorestart=true

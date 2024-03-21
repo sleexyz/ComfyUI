@@ -10,8 +10,8 @@ from comfy.cli_args import args
 from comfy.ldm.modules.attention import attention_basic, attention_pytorch, attention_split, attention_sub_quad, default
 
 from .logger import logger
-from globals import force_causal
 
+from surgery import debug_options
 
 # until xformers bug is fixed, do not use xformers for VersatileAttention! TODO: change this when fix is out
 # logic for choosing optimized_attention method taken from comfy/ldm/modules/attention.py
@@ -63,7 +63,7 @@ class CrossAttentionMM(nn.Module):
         # apply scale mask, if present
         if scale_mask is not None:
             k *= scale_mask
-        out = optimized_attention_mm(q, k, v, self.heads, mask, is_causal=force_causal)
+        out = optimized_attention_mm(q, k, v, self.heads, mask, is_causal=debug_options.force_causal)
         return self.to_out(out)
 
 # TODO: set up comfy.ops style classes for groupnorm and other functions

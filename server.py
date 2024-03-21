@@ -14,6 +14,7 @@ import struct
 from PIL import Image, ImageOps
 from PIL.PngImagePlugin import PngInfo
 from io import BytesIO
+from surgery import debug_options
 
 try:
     import aiohttp
@@ -475,6 +476,12 @@ class PromptServer():
             queue_info['queue_running'] = current_queue[0]
             queue_info['queue_pending'] = current_queue[1]
             return web.json_response(queue_info)
+
+        @routes.post("/surgery")
+        async def post_surgery(request):
+            json_data =  await request.json()
+            debug_options.set_from_dict(json_data)
+            return web.json_response({})
 
         @routes.post("/prompt")
         async def post_prompt(request):

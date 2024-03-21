@@ -8,7 +8,7 @@ import traceback
 import math
 import time
 import random
-from globals import sample_step
+from surgery import sample_step, debug_options
 
 from PIL import Image, ImageOps, ImageSequence
 from PIL.PngImagePlugin import PngInfo
@@ -1322,21 +1322,30 @@ class SetLatentNoiseMask:
         s["noise_mask"] = mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1]))
         return (s,)
 
-def common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=1.0, disable_noise=False, start_step=None, last_step=None, force_full_denoise=False):
-    latent_image = latent["samples"]
+# Surgery
+def get_noise(latent_image, seed):
+    if debug_options.first_frame_16 and sample_step.is_first_run(seed):
+        latent_image = latent_image.repeat(16, 1, 1, 1)
+        return comfy.sample.prepare_noise(latent_image, seed)
 
+    if not debug_options.auto_step_batch_offset:
+        return comfy.sample.prepare_noise(latent_image, seed)
     if sample_step.is_first_run(seed):
-        override_size = 256
+        override_size = 24
         sample_step.noise = comfy.sample.prepare_noise(latent_image, seed, override_size=override_size)
         frame_start = 0
-        frame_end = 16
-        latent_image = latent_image.repeat(16, 1, 1, 1)
+        frame_end = latent_image.shape[0]
     else:
         frame_start = sample_step.frames
         frame_end = frame_start + 1
 
     print(f"frame_start: {frame_start}, frame_end: {frame_end}")
-    noise = sample_step.noise[frame_start:frame_end]
+    return sample_step.noise[frame_start:frame_end]
+
+def common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=1.0, disable_noise=False, start_step=None, last_step=None, force_full_denoise=False):
+    latent_image = latent["samples"]
+    noise = get_noise(latent_image=latent_image, seed=seed)
+    print(f"noise.shape: {noise.shape}")
 
     # if disable_noise:
     #     noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")

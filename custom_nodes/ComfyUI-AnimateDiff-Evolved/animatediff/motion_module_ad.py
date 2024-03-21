@@ -20,7 +20,7 @@ from .utils_motion import CrossAttentionMM, MotionCompatibilityError, extend_to_
 from .utils_model import BetaSchedules, ModelTypeSD
 from .logger import logger
 
-from globals import sample_step,debug_options
+from surgery import sample_step, debug_options
 from torchview import draw_graph
 
 
@@ -180,7 +180,6 @@ class AnimateDiffModel(nn.Module):
         self.up_blocks: Iterable[MotionModule] = nn.ModuleList([])
         self.mid_block: Union[MotionModule, None] = None
         self.encoding_max_len = get_position_encoding_max_len(mm_state_dict, mm_info.mm_name, mm_info.mm_format)
-        print(f"00000000000000000000000 -- encoding_max_len: {self.encoding_max_len}")
         self.has_position_encoding = self.encoding_max_len is not None
         # determine ops to use (to support fp8 properly)
         if comfy.model_management.unet_manual_cast(comfy.model_management.unet_dtype(), comfy.model_management.get_torch_device()) is None:
@@ -394,7 +393,6 @@ class MotionModule(nn.Module):
             block_type: str=BlockType.DOWN,
             ops=comfy.ops.disable_weight_init
         ):
-        print(f"in_channels: {in_channels}")
         super().__init__()
         if block_type == BlockType.MID:
             # mid blocks contain only a single VanillaTemporalModule
@@ -491,9 +489,10 @@ class VanillaTemporalModule(nn.Module):
             )
 
     def set_video_length(self, video_length: int, full_length: int):
-        video_length = 16
-        full_length = 16
-        print(f"setting video length to {video_length} and full length to {full_length}")
+        if debug_options.extend_context:
+            video_length = 16
+            full_length = 16
+            print(f"setting video length to {video_length} and full length to {full_length}")
         self.video_length = video_length
         self.full_length = full_length
         self.temporal_transformer.set_video_length(video_length, full_length)
@@ -550,18 +549,21 @@ class VanillaTemporalModule(nn.Module):
         return self.temp_effect_mask[full_batched_idxs]
 
     def intercept_forward(self, input_tensor: Tensor, encoder_hidden_states=None, attention_mask=None, view_options: ContextOptions = None):
+        if not debug_options.extend_context:
+            return self.temporal_transformer(input_tensor, encoder_hidden_states, attention_mask, view_options)
+
         # print("input_tensor", input_tensor.shape)
         # print(f"0.mean: {input_tensor[0].mean().item()} 0.std: {input_tensor[0].std().item()}")
         # print(f"1.mean: {input_tensor[1].mean().item()} 1.std: {input_tensor[1].std().item()}")
 
         # Stack the input tensor with the last video_length frames
         stacked_input = self.memory.push(sample_step.get_timestep(), input_tensor)
-        # print("stacked_input", stacked_input.shape)
+        print("stacked_input", stacked_input.shape)
 
         assert(self.video_length == 16)
         assert(stacked_input.shape[0] == 32)
 
-        if debug_options["print_motion_module"]:
+        if debug_options.print_motion_module:
             draw_graph(
                 self.temporal_transformer,
                 input_data=(
@@ -624,6 +626,7 @@ class InputMemory():
 
         if self.memory is None:
             # self.memory = input_tensor.repeat(self.video_length, 1, 1, 1)
+            print(f"pushing to memory: {input_tensor.shape}, video_length: {self.video_length}, channels: {self.channels}")
             assert(input_tensor.size(0) == self.video_length * self.channels)
             self.memory = input_tensor
             return self.memory
@@ -968,9 +971,9 @@ class PositionalEncoding(nn.Module):
         #if self.sub_idxs is not None:
         #    x = x + self.pe[:, self.sub_idxs]
         #else:
-        print(f"(positional_encoder): base frame #: {sample_step.get_frame()}, x.shape: {x.shape}, pe.shape: {self.pe.shape}")
+        # print(f"(positional_encoder): base frame #: {sample_step.get_frame()}, x.shape: {x.shape}, pe.shape: {self.pe.shape}")
 
-        if debug_options["offset_positional_encoding"]:
+        if debug_options.offset_positional_encoding:
             debug_offset = 0
             start_index = max(sample_step.get_frame() - 16, 0) + debug_offset
             end_index = start_index + 16
@@ -979,7 +982,7 @@ class PositionalEncoding(nn.Module):
             print(f"start_index: {start_index}, end_index: {end_index}")
             x = x + self.pe[:, start_index:end_index]
         else:
-            x = x + self.pe[:, start_index: x.size(1)]
+            x = x + self.pe[:, : x.size(1)]
         return self.dropout(x)
 
 

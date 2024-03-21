@@ -341,7 +341,12 @@ def attention_pytorch(q, k, v, heads, mask=None, is_causal=False):
         (q, k, v),
     )
 
-    out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask, dropout_p=0.0, is_causal=is_causal)
+    if is_causal:
+        L, S = q.shape[-2], k.shape[-2]
+        mask = torch.ones(L, S, dtype=torch.bool, device=q.device).tril(diagonal=0)
+
+    # out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask, dropout_p=0.0, is_causal=is_causal)
+    out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask, dropout_p=0.0)
     out = (
         out.transpose(1, 2).reshape(b, -1, heads * dim_head)
     )

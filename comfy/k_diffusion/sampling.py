@@ -9,7 +9,7 @@ from tqdm.auto import trange, tqdm
 # writer = SummaryWriter()
 
 from torchview import draw_graph
-from globals import debug_options, sample_step
+from surgery import debug_options, sample_step
 
 from . import utils
 
@@ -142,7 +142,7 @@ def sample_euler(model, x, sigmas, extra_args=None, callback=None, disable=None,
             x = x + eps * (sigma_hat ** 2 - sigmas[i] ** 2) ** 0.5
         # print(f"i: {i}, sigma: {sigmas[i]}, sigma_hat: {sigma_hat}, x.shape: {x.shape}")
 
-        if i == 0 and debug_options["print_model"]:
+        if i == 0 and debug_options.print_model:
             draw_graph(
                 model,
                 input_data=(

@@ -165,10 +165,6 @@ export function getRemoteFromPodRuntime(podRuntime: PodRuntime): Remote {
   };
 }
 
-export function getSshCmd(remote: Remote): string {
-  return `ssh ${remote?.user}@${remote?.ip} -p ${remote?.port} -i ~/.ssh/id_ed25519`;
-}
-
 function startPodMutation(podId: string) {
   return `mutation {
   podResume(input: {podId: ${JSON.stringify(podId)}, gpuCount: 1}) {

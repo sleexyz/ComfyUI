@@ -27,10 +27,11 @@ fi
 
 mkdir -p $REMOTE_ROOT/logs
 
+USER=$(whoami)
+
 cat <<EOF > $REMOTE_ROOT/supervisord.conf
 [supervisord]
-user=ubuntu
-nodaemon=true
+user=$USER
 logfile=$REMOTE_ROOT/logs/supervisord.log
 
 [unix_http_server]

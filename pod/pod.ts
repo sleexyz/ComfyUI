@@ -1,11 +1,11 @@
 #!/usr/bin/env -S bun
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { RunPodContext, Pod, ensureActivePodIsLoaded as ensurePodStarted, refreshState, getRemoteFromPodRuntime, stopPodAndWait, getFirstPod, Remote, getSshCmd } from './runpod';
+import { RunPodContext, Pod, ensureActivePodIsLoaded as ensurePodStarted, refreshState, getRemoteFromPodRuntime, stopPodAndWait, getFirstPod, Remote } from './runpod';
 import * as dotenv from 'dotenv';
 
 const env = {
+  SSH_KEY: "~/.ssh/id_ed25519",
   ...dotenv.parse(readFileSync('.env')),
-  ...dotenv.parse(readFileSync('pod_config/.pod.env')), 
 };
 
 export async function loadActivePod(): Promise<Pod | null> {
@@ -48,6 +48,9 @@ const operations: OperationDict = {
     usage: "pod start",
     requirePodStarted: true,
     run: async (ctx: RunPodContext, args: string[]) => {
+      // First, sync the files
+      await operations.sync.run(ctx, args);
+
       if (!env.CLOUDFLARE_DEMO_KEY) {
         console.error("CLOUDFLARE_DEMO_KEY is not set. Exiting.");
         process.exit(1);
@@ -130,7 +133,7 @@ const operations: OperationDict = {
         process.exit(1);
       }
       console.log("Copying files from the pod...");
-      await spawn(`scp -i ~/.ssh/id_ed25519 -r -P ${ctx.port} "${ctx.user}@${ctx.ip}:${env.REMOTE_DIR}/${source}" ${dest}`);
+      await spawn(`scp -i ${env.SSH_KEY} -r -P ${ctx.port} "${ctx.user}@${ctx.ip}:${env.REMOTE_DIR}/${source}" ${dest}`);
       return;
     },
   },
@@ -148,7 +151,7 @@ const operations: OperationDict = {
         process.exit(1);
       }
       console.log("Copying files to the pod...");
-      await spawn(`scp -i ~/.ssh/id_ed25519 -r -P ${ctx.port} ${source} "${ctx.user}@${ctx.ip}:${env.REMOTE_DIR}/${dest}"`);
+      await spawn(`scp -i ${env.SSH_KEY} -r -P ${ctx.port} ${source} "${ctx.user}@${ctx.ip}:${env.REMOTE_DIR}/${dest}"`);
       return;
     },
   },
@@ -188,7 +191,7 @@ class RunPodContext {
     if (!remote) {
       return null;
     }
-    return `ssh ${remote.user}@${remote.ip} -p ${remote.port} -i ~/.ssh/id_ed25519`;
+    return `ssh ${remote.user}@${remote.ip} -p ${remote.port} -i ${env.SSH_KEY}`;
   }
   get ip() {
     return this.remote?.ip;
