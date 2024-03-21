@@ -9,6 +9,7 @@ from .diffusionmodules.util import checkpoint, AlphaBlender, timestep_embedding
 from .sub_quadratic_attention import efficient_dot_product_attention
 
 from comfy import model_management
+from surgery import debug_options
 
 if model_management.xformers_enabled():
     import xformers
@@ -341,12 +342,18 @@ def attention_pytorch(q, k, v, heads, mask=None, is_causal=False):
         (q, k, v),
     )
 
+    is_causal_override = False
     if is_causal:
-        L, S = q.shape[-2], k.shape[-2]
-        mask = torch.ones(L, S, dtype=torch.bool, device=q.device).tril(diagonal=0)
+        if debug_options.force_causal_use_manual_mask:
+            L, S = q.shape[-2], k.shape[-2]
+            mask = torch.ones(L, S, dtype=torch.bool, device=q.device).tril(diagonal=0)
+            print(f"Using manual causal mask: {mask.shape}")
+        else:
+            is_causal_override = True
+
 
     # out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask, dropout_p=0.0, is_causal=is_causal)
-    out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask, dropout_p=0.0)
+    out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask, dropout_p=0.0, is_causal=is_causal_override)
     out = (
         out.transpose(1, 2).reshape(b, -1, heads * dim_head)
     )

@@ -1,0 +1,222 @@
+{
+  "2": {
+    "inputs": {
+      "vae_name": "vae-ft-mse-840000-ema-pruned.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "3": {
+    "inputs": {
+      "text": "biking down new york city street, pov, 4k",
+      "clip": [
+        "73",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "(worst quality, low quality: 1.4)",
+      "clip": [
+        "73",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "10": {
+    "inputs": {
+      "samples": [
+        "69",
+        0
+      ],
+      "vae": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "32": {
+    "inputs": {
+      "ckpt_name": "dreamshaper_8.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "37": {
+    "inputs": {
+      "lora_name": "v3_sd15_adapter.ckpt",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "model": [
+        "32",
+        0
+      ],
+      "clip": [
+        "32",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Load LoRA"
+    }
+  },
+  "63": {
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "66": {
+    "inputs": {
+      "lora_name": "500_biking_temporal_unet.safetensors",
+      "strength": 1
+    },
+    "class_type": "ADE_AnimateDiffLoRALoader",
+    "_meta": {
+      "title": "Load AnimateDiff LoRA 🎭🅐🅓"
+    }
+  },
+  "69": {
+    "inputs": {
+      "seed": 731168232970897,
+      "steps": 25,
+      "cfg": 4,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1,
+      "model": [
+        "70",
+        0
+      ],
+      "positive": [
+        "3",
+        0
+      ],
+      "negative": [
+        "6",
+        0
+      ],
+      "latent_image": [
+        "63",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "70": {
+    "inputs": {
+      "model_name": "v3_sd15_mm.ckpt",
+      "beta_schedule": "autoselect",
+      "model": [
+        "73",
+        0
+      ],
+      "context_options": [
+        "74",
+        0
+      ],
+      "motion_lora": [
+        "66",
+        0
+      ],
+      "sample_settings": [
+        "75",
+        0
+      ]
+    },
+    "class_type": "ADE_AnimateDiffLoaderGen1",
+    "_meta": {
+      "title": "AnimateDiff Loader 🎭🅐🅓①"
+    }
+  },
+  "73": {
+    "inputs": {
+      "lora_name": "500_biking_spatial_unet.safetensors",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "model": [
+        "37",
+        0
+      ],
+      "clip": [
+        "37",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Load LoRA"
+    }
+  },
+  "74": {
+    "inputs": {
+      "context_length": 16,
+      "context_overlap": 4,
+      "fuse_method": "pyramid",
+      "use_on_equal_length": false,
+      "start_percent": 0,
+      "guarantee_steps": 1
+    },
+    "class_type": "ADE_StandardStaticContextOptions",
+    "_meta": {
+      "title": "Context Options◆Standard Static 🎭🅐🅓"
+    }
+  },
+  "75": {
+    "inputs": {
+      "batch_offset": 0,
+      "noise_type": "default",
+      "seed_gen": "comfy",
+      "seed_offset": 0,
+      "adapt_denoise_steps": false
+    },
+    "class_type": "ADE_AnimateDiffSamplingSettings",
+    "_meta": {
+      "title": "Sample Settings 🎭🅐🅓"
+    }
+  },
+  "77": {
+    "inputs": {
+      "frame_rate": 8,
+      "loop_count": 0,
+      "filename_prefix": "AnimateDiff",
+      "format": "image/gif",
+      "pingpong": false,
+      "save_output": true,
+      "images": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Video Combine 🎥🅥🅗🅢"
+    }
+  }
+}

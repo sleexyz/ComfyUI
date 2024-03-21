@@ -23,7 +23,6 @@ from .logger import logger
 from surgery import sample_step, debug_options
 from torchview import draw_graph
 
-
 def zero_module(module):
     # Zero out the parameters of a module and return it.
     for p in module.parameters():
@@ -443,6 +442,7 @@ def get_motion_module(in_channels, temporal_position_encoding, temporal_position
 
 
 class VanillaTemporalModule(nn.Module):
+    next_id = 0
     def __init__(
         self,
         in_channels,
@@ -458,6 +458,8 @@ class VanillaTemporalModule(nn.Module):
     ):
         super().__init__()
 
+        self.id = VanillaTemporalModule.next_id
+        VanillaTemporalModule.next_id += 1
         self.video_length = 16
         self.full_length = 16
         self.sub_idxs = None
@@ -583,7 +585,14 @@ class VanillaTemporalModule(nn.Module):
         return output
 
     def forward(self, input_tensor: Tensor, encoder_hidden_states=None, attention_mask=None):
-        # return input_tensor
+        if debug_options.save_motion_module and self.id == 0:
+            torch.save(self, f"vanilla_temporal_module_self.pt")
+            torch.save(input_tensor, f"vanilla_temporal_module_input_tensor.pt")
+            torch.save(encoder_hidden_states, f"vanilla_temporal_module_encoder_hidden_states.pt")
+            torch.save(attention_mask, f"vanilla_temporal_module_attention_mask.pt")
+
+        if debug_options.skip_vanilla_temporal_module:
+            return input_tensor
 
         if self.effect is None:
             return self.intercept_forward(input_tensor, encoder_hidden_states, attention_mask, self.view_options)

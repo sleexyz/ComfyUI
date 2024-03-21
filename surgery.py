@@ -4,9 +4,16 @@ class DebugOptions:
     def __init__(self):
         # TODO: make this a settings object
         # adjustable via websocket / comfy node
-        self.force_causal = True
-        self.extend_context = True
-        self.first_frame_16 = True
+        self.force_causal = False
+        self.force_causal_use_manual_mask = False
+        self.extend_context = False
+        self.first_frame_16 = False
+        self.skip_vanilla_temporal_module = False
+        self.save_motion_module = False
+
+
+
+
 
         self.auto_step_batch_offset = False
 
