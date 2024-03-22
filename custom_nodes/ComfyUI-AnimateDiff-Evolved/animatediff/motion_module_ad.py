@@ -490,8 +490,9 @@ class VanillaTemporalModule(nn.Module):
                 self.temporal_transformer.proj_out
             )
 
+    # TODO: have memory module call this based on context length, instead of hardcoding 16
     def set_video_length(self, video_length: int, full_length: int):
-        if debug_options.extend_context:
+        if debug_options.extend_context_to_16:
             video_length = 16
             full_length = 16
             print(f"setting video length to {video_length} and full length to {full_length}")
@@ -551,7 +552,7 @@ class VanillaTemporalModule(nn.Module):
         return self.temp_effect_mask[full_batched_idxs]
 
     def intercept_forward(self, input_tensor: Tensor, encoder_hidden_states=None, attention_mask=None, view_options: ContextOptions = None):
-        if not debug_options.extend_context:
+        if not debug_options.extend_context_to_16:
             return self.temporal_transformer(input_tensor, encoder_hidden_states, attention_mask, view_options)
 
         # print("input_tensor", input_tensor.shape)
@@ -629,6 +630,9 @@ class InputMemory():
         self.channels = 2 # Is this the best name?
         self.run = 0
 
+    # Inputs and outputs are batch major concated in dim=0 (b f) d c
+    # internally we can still store them batch major, and concat / chop in the frame dimension
+    # b f d c
     def push(self, input_tensor: Tensor):
         # print(f"run: {self.run}")
         self.run += 1
@@ -637,12 +641,16 @@ class InputMemory():
             # self.memory = input_tensor.repeat(self.video_length, 1, 1, 1)
             print(f"pushing to memory: {input_tensor.shape}, video_length: {self.video_length}, channels: {self.channels}")
             assert(input_tensor.size(0) == self.video_length * self.channels)
-            self.memory = input_tensor
-            return self.memory
+            self.memory = rearrange(input_tensor, "(b f) c d e -> b f c d e", f=self.video_length)
+            return input_tensor
         else:
-            self.memory = torch.cat([self.memory, input_tensor], dim=0)
-        self.memory = self.memory[-(self.video_length * self.channels):]
-        return self.memory
+            input_tensor = rearrange(input_tensor, "(b f) c d e -> b f c d e", b=self.channels)
+            self.memory = torch.cat([self.memory, input_tensor], dim=1)
+        self.memory = self.memory[:, -self.video_length:]
+
+        return rearrange(
+            self.memory, "b f c d e -> (b f) c d e", f=self.video_length
+        )
 
 class TemporalTransformer3DModel(nn.Module):
     def __init__(
@@ -980,11 +988,11 @@ class PositionalEncoding(nn.Module):
         #if self.sub_idxs is not None:
         #    x = x + self.pe[:, self.sub_idxs]
         #else:
-        # print(f"(positional_encoder): base frame #: {sample_step.get_frame()}, x.shape: {x.shape}, pe.shape: {self.pe.shape}")
+        # print(f"(positional_encoder): base frame #: {debug_options.frame}, x.shape: {x.shape}, pe.shape: {self.pe.shape}")
 
         if debug_options.offset_positional_encoding:
             debug_offset = 0
-            start_index = max(sample_step.get_frame() - 16, 0) + debug_offset
+            start_index = max(debug_options.frame - 16, 0) + debug_offset
             end_index = start_index + 16
             assert(end_index <= self.pe.size(1))
             assert(start_index >= 0)

@@ -149,7 +149,7 @@ def sample_euler(model, x, sigmas, extra_args=None, callback=None, disable=None,
                     x,
                     sigma_hat * s_in,
                 ),
-                graph_name=f"model_{sample_step.get_frame()}",
+                graph_name=f"model_{debug_options.frame}",
                 expand_nested=True,
                 save_graph=True,
                 **extra_args,
@@ -163,8 +163,7 @@ def sample_euler(model, x, sigmas, extra_args=None, callback=None, disable=None,
         # Euler method
         x = x + d * dt
         sample_step.increment()
-    
-    sample_step.increment_frames()
+    debug_options.frame += 1
     return x
 
 

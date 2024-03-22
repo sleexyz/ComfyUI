@@ -479,7 +479,9 @@ class PromptServer():
 
         @routes.post("/surgery")
         async def post_surgery(request):
-            json_data =  await request.json()
+            print("got surgery")
+            json_data = await request.json()
+            print(f"surgery: {json_data}")
             debug_options.set_from_dict(json_data)
             return web.json_response({})
 
